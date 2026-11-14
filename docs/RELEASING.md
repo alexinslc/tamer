@@ -32,7 +32,7 @@ These need the project owner's CurseForge account:
 
 The tag has to match the TOC's version, and the changelog needs a section for it, or the release stops before uploading anything. CurseForge reviews a new project's first file before it goes live.
 
-The first public release is 1.0.0. Versions before it are for testing and don't get a changelog section.
+Versions before 1.0.0 are test versions. They upload to CurseForge as a Beta and to GitHub as a pre-release, and get a changelog section like any other.
 
 ## When the client updates
 

@@ -1,8 +1,13 @@
 ## Interface: 16001
 ## Title: Tamer
-## Notes: Shows what your Hunter pet needs to learn next and where to get it.
+## Notes: Shows what your Hunter pet can train now, what's next, and which beast teaches what you're missing.
 ## Version: 0.1.0
-## IconTexture: Interface\Icons\Ability_Hunter_BeastTraining
+## IconTexture: Interface\AddOns\Tamer\Textures\Icon
 ## SavedVariables: TamerDB
 
+Data.lua
 Core.lua
+Knowledge.lua
+Advisor.lua
+Dashboard.lua
+MinimapButton.lua

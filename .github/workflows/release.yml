@@ -10,6 +10,7 @@ on:
   workflow_dispatch:
 
 env:
+  # Versions before 1.0.0 are test versions: a Beta on CurseForge and a pre-release on GitHub.
   # CurseForge's name for the client version. Change this when the client's version changes,
   # along with ## Interface in Tamer.toc.
   GAME_VERSION: "1.60.1"
@@ -80,8 +81,10 @@ jobs:
             echo "::error::Expected one CurseForge game version named $GAME_VERSION, found: $ids"
             exit 1
           fi
-          metadata="$(jq -n --rawfile notes notes.md --arg name "Tamer ${GITHUB_REF_NAME#v}" --argjson ids "$ids" \
-            '{changelog: $notes, changelogType: "markdown", displayName: $name, gameVersions: $ids, releaseType: "release"}')"
+          release_type=release
+          case "$GITHUB_REF_NAME" in v0.*) release_type=beta ;; esac
+          metadata="$(jq -n --rawfile notes notes.md --arg type "$release_type" --arg name "Tamer ${GITHUB_REF_NAME#v}" --argjson ids "$ids" \
+            '{changelog: $notes, changelogType: "markdown", displayName: $name, gameVersions: $ids, releaseType: $type}')"
           curl -sS --fail-with-body -H "X-Api-Token: $CF_API_TOKEN" \
             --form-string "metadata=$metadata" -F "file=@$ZIP_FILE" \
             "$api/projects/$CF_PROJECT_ID/upload-file"
@@ -90,4 +93,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" "$ZIP_FILE" --title "Tamer ${GITHUB_REF_NAME#v}" --notes-file notes.md
+        run: |
+          prerelease=""
+          case "$GITHUB_REF_NAME" in v0.*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" "$ZIP_FILE" --title "Tamer ${GITHUB_REF_NAME#v}" --notes-file notes.md $prerelease

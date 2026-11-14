@@ -96,6 +96,7 @@ Every ability rank on the dashboard is in exactly one of these states, always wr
 | --- | --- |
 | `/tamer` | Open or close the dashboard |
 | `/tamer minimap` | Show or hide the minimap button |
+| `/tamer status` | Print what Tamer can read about you and your pet |
 | `/tamer help` | List the commands |
 
 ## 4. Game data
@@ -111,7 +112,9 @@ These are what Classic-era clients provide. Each one has to be confirmed on WoW 
 | Training points left | `GetPetTrainingPoints()` | |
 | Ranks the pet knows | The pet's spellbook | Read when the pet is called and when it learns something. |
 | Ranks the Hunter knows | The Beast Training window (the craft API: `GetNumCrafts`, `GetCraftInfo`) | Only readable while the window is open, so Tamer saves what it saw for each character. Also updated from "You have learned" chat messages. |
-| Each rank's level and training point cost | The Beast Training window | Saved alongside the ranks above. |
+| Each rank's level and training point cost | The Beast Training window | Saved alongside the ranks above. Tamer's data comes first when it has the rank. |
+
+Tamer assumes training a higher rank refunds the points spent on the pet's current rank, so an upgrade costs the difference, as in Classic. Check this in milestone 2 too.
 
 Until you've opened Beast Training once, Tamer can't know which ranks you have, so the dashboard asks you to open it.
 
@@ -159,7 +162,7 @@ Both follow Fireside Tales.
 
 - **Artwork:** [artwork-brief.md](artwork-brief.md) is the request for our artist: a logo, in-game icon, minimap icon and banner, built around the moment of taming: a Hunter's open hand and a wild beast lowering its head to sniff it. Send it at the start, so the art is ready by release.
 - **CurseForge page:** [curseforge-listing.md](curseforge-listing.md) has every field the project form asks for and a draft description, with the same shape as Fireside Tales': a banner, what it does, a short how-to, commands, and a "Good to know" section. The gallery gets four real screenshots, listed in the artwork brief.
-- **Changelog:** the same style as Fireside Tales. One `## X.Y.Z` section per release, newest first, with short, plain bullets. Each release posts the whole changelog to CurseForge and GitHub. There's no "Unreleased" section, and the first section is written for 1.0.0.
+- **Changelog:** the same style as Fireside Tales. One `## X.Y.Z` section per release, newest first, with short, plain bullets. Each release posts the whole changelog to CurseForge and GitHub. There's no "Unreleased" section. Test versions before 1.0.0 upload as a Beta and get a section too.
 
 ## 7. Milestones
 
@@ -207,3 +210,7 @@ Both follow Fireside Tales.
 - Does Forever's Beast Training window use the same craft API as Classic? Milestone 2 answers this.
 - How closely does Forever's beast data match Classic Era? Spot checks during milestone 5 will show how much the public data needs fixing.
 - Which zones or level range should the first data cover? The plan says 10 to 30.
+- These ranks up to level 30 have no beast in `Data.lua` yet, because Wowhead started asking for a human check partway through: Dive 1, Furious Howl 1 and 2, Lightning Breath 1 and 3, Prowl 1, Scorpid Poison 1 and 2, Screech 1 and 2, and Shell Shield 1.
+- Does `UnitCreatureFamily` return "Owl" or "Bird of Prey" on Forever? Tamer accepts both for now.
+- Wowhead's Forever pages list Pet Trainers as also teaching some ranks of Bite, Claw, Cower and Dash. If that's true on Forever, those ranks need a trainer note too.
+- Wowhead Classic puts Shadow Resistance rank 4 at level 40, the same as rank 3, while the other resistances put rank 4 at 50. Check it in the game.

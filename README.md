@@ -16,7 +16,18 @@ The full plan is in [docs/plan.md](docs/plan.md).
 
 ## What it is
 
-So far the addon loads, keeps its saved data in `TamerDB`, and answers `/tamer`. The pet dashboard isn't built yet.
+One small window for the pet you have out. Open it with the minimap icon or `/tamer`. It shows:
+
+- **What your pet knows.**
+- **Ready to train:** ranks you know that your pet can learn right now, with their training point cost.
+- **Next upgrade:** ranks you know that your pet needs a higher level for.
+- **Go learn it:** the next rank of each ability you don't know yet. Click one to see up to three beasts that teach it, with their level and zone, or the Pet Trainer for abilities trainers teach.
+
+When your pet levels into a rank you can teach it, Tamer prints one line in chat. That's the only time it speaks up.
+
+The game only shows which ranks you know while Beast Training is open, so cast Beast Training once with each kind of pet out. Tamer remembers them for each character.
+
+The beast list is built in, from public Classic Era data. It's in `addon/Tamer/Data.lua`.
 
 ## Setup
 
@@ -33,7 +44,9 @@ So far the addon loads, keeps its saved data in `TamerDB`, and answers `/tamer`.
 
 | Command | What it does |
 | --- | --- |
-| `/tamer` | Show your pet's next step |
+| `/tamer` | Open or close the window |
+| `/tamer minimap` | Show or hide the minimap icon |
+| `/tamer status` | Print what Tamer can read about you and your pet |
 | `/tamer help` | List the commands |
 
 ## Working on the addon
@@ -47,6 +60,18 @@ These commands need [PowerShell 7](https://learn.microsoft.com/powershell/script
 Pass `-WowPath` if the game isn't in the default location. Restart the game after linking.
 
 The addon is in `addon/Tamer/`. Edits load with `/reload`. A brand-new file needs a game restart and an entry in `Tamer.toc`.
+
+- `Data.lua`: the abilities, their ranks, and the beasts that teach them. Note the source above each section, copy facts only, and never take another addon's data.
+- `Core.lua`: saved data, the slash command, and shared helpers.
+- `Knowledge.lua`: reads the pet, its spellbook, its training points, and Beast Training.
+- `Advisor.lua`: works out each rank's status. It makes no game calls, so the harness tests it fully.
+- `Dashboard.lua` and `MinimapButton.lua`: the window and the minimap icon.
+
+The artist's PNGs are in `art/`. After replacing `icon.png` or `minimap.png`, rebuild the in-game textures on a Mac:
+
+```sh
+python3 tools/make-textures.py
+```
 
 To test the addon outside the game, run the harness with [LuaJIT](https://luajit.org/). See [tools/harness/README.md](tools/harness/README.md).
 
