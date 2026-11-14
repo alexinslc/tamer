@@ -2,7 +2,7 @@
 
 Everything the project form asks for. Paste the description in Markdown mode.
 
-This is a draft written before the addon is built. Check every line against what 1.0 actually does before publishing, and take the screenshots from the real game.
+This is what's live for the 0.1.0 test version. Before 1.0, drop the early-testing line, add the artist's credit and "Screenshots are from the real game." to "Good to know", and add real screenshots to the gallery.
 
 | Field | Value |
 | --- | --- |
@@ -22,6 +22,8 @@ This is a draft written before the addon is built. Check every line against what
 ![Tamer](https://raw.githubusercontent.com/alexinslc/tamer/main/art/banner.png)
 
 **Your pet just hit level 16. Can it learn something new? Do you even know that rank yet? Where do you find the beast that teaches it?** Tamer answers all three in one small window, so you can stop digging through lists and get back to hunting.
+
+**Tamer is in early testing.** Some ranks don't have a beast in the list yet.
 
 ### What it shows
 
@@ -58,6 +60,6 @@ That's the only time it speaks up.
 
 ### Good to know
 
-The beast list is built from public World of Warcraft Classic data and checked against Forever. If a beast is in the wrong place or teaches something different on Forever, leave a comment and it'll be fixed. Art by [artist's name]. Screenshots are from the real game. This addon is free, and it isn't affiliated with or endorsed by Blizzard Entertainment.
+The beast list is built from public World of Warcraft Classic data, and it's still being checked against Forever. If a beast is in the wrong place or teaches something different on Forever, leave a comment and it'll be fixed. This addon is free, and it isn't affiliated with or endorsed by Blizzard Entertainment.
 
 Found a bug or have an idea? Leave a comment, or open an issue on [GitHub](https://github.com/alexinslc/tamer).
