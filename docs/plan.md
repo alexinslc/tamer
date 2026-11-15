@@ -109,12 +109,12 @@ These are what Classic-era clients provide. Each one has to be confirmed on WoW 
 | --- | --- | --- |
 | Pet's name, level, family | `UnitName("pet")`, `UnitLevel("pet")`, `UnitCreatureFamily("pet")` | Available whenever a pet is out. |
 | Pet's experience | `GetPetExperience()` | |
-| Training points left | `GetPetTrainingPoints()` | |
-| Ranks the pet knows | The pet's spellbook | Read when the pet is called and when it learns something. |
-| Ranks the Hunter knows | The Beast Training window (the craft API: `GetNumCrafts`, `GetCraftInfo`) | Only readable while the window is open, so Tamer saves what it saw for each character. Also updated from "You have learned" chat messages. |
+| Training points left | `C_PetInfo.GetPetTrainingPoints()` on Forever, `GetPetTrainingPoints()` on Classic | Returns total and spent. |
+| Ranks the pet knows | The pet's spellbook (`C_SpellBook` on Forever) | Read when the pet is called and when it learns something. |
+| Ranks the Hunter knows | The Beast Training window. On Forever it's a trainer window (`TRAINER_SHOW`, `GetTrainerServiceInfo`, which returns name, category, icon, level, rank). Classic uses the craft API. | Only readable while the window is open, so Tamer saves what it saw for each character. Also updated from "You have learned" chat messages. |
 | Each rank's level and training point cost | The Beast Training window | Saved alongside the ranks above. Tamer's data comes first when it has the rank. |
 
-Tamer assumes training a higher rank refunds the points spent on the pet's current rank, so an upgrade costs the difference, as in Classic. Check this in milestone 2 too.
+Training a higher rank refunds the points spent on the pet's current rank, so an upgrade costs the difference, as in Classic. Checked on Forever: Claw 3 showed 6 points with Claw 1 known (7 minus 1).
 
 Until you've opened Beast Training once, Tamer can't know which ranks you have, so the dashboard asks you to open it.
 
@@ -207,7 +207,7 @@ Both follow Fireside Tales.
 
 ## 10. Open questions
 
-- Does Forever's Beast Training window use the same craft API as Classic? Milestone 2 answers this.
+- Forever has abilities Classic doesn't, such as Swipe for bears. Tamer ignores them until the data has their ranks and teachers.
 - How closely does Forever's beast data match Classic Era? Spot checks during milestone 5 will show how much the public data needs fixing.
 - Which zones or level range should the first data cover? The plan says 10 to 30.
 - These ranks up to level 30 have no beast in `Data.lua` yet, because Wowhead started asking for a human check partway through: Dive 1, Furious Howl 1 and 2, Lightning Breath 1 and 3, Prowl 1, Scorpid Poison 1 and 2, Screech 1 and 2, and Shell Shield 1.

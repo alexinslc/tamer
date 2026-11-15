@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1
+
+- Fixed Tamer not seeing Beast Training on Forever.
+- Fixed Tamer not reading your pet's abilities and training points on Forever.
+- Added /tamer debug, which prints what the game returns for bug reports.
+
 ## 0.1.0
 
 - First test version.

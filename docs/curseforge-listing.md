@@ -56,6 +56,7 @@ That's the only time it speaks up.
 | `/tamer` | Open or close the window |
 | `/tamer minimap` | Show or hide the minimap icon |
 | `/tamer status` | Print what Tamer can read about you and your pet |
+| `/tamer debug` | Print what the game returns, for bug reports |
 | `/tamer help` | List the commands |
 
 ### Good to know
