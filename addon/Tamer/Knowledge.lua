@@ -40,9 +40,12 @@ function K.Pet()
 	if GetPetExperience then
 		pet.xp, pet.xpMax = GetPetExperience()
 	end
-	if GetPetTrainingPoints then
-		local total, spent = GetPetTrainingPoints()
-		if total then pet.points = total - (spent or 0) end
+	-- Forever keeps this in C_PetInfo. Classic has it as a global.
+	local trainingPoints = (C_PetInfo and C_PetInfo.GetPetTrainingPoints) or GetPetTrainingPoints
+	if trainingPoints then
+		local total, spent = trainingPoints()
+		total, spent = plain(total), plain(spent)
+		if type(total) == "number" then pet.points = total - (type(spent) == "number" and spent or 0) end
 	end
 	return pet
 end
@@ -196,19 +199,34 @@ end
 
 -- Forever's Beast Training window, if it's a trainer window. A Pet Trainer NPC uses the same
 -- window to sell ranks you don't know yet, so a window with an NPC behind it is skipped.
+local CATEGORIES = { available = true, unavailable = true, used = true, header = true }
+
 local function readTrainer()
 	if not GetNumTrainerServices or not GetTrainerServiceInfo then return 0 end
 	if UnitExists("npc") then return 0 end
 	local found = 0
 	for i = 1, GetNumTrainerServices() or 0 do
-		local name, sub, category = GetTrainerServiceInfo(i)
-		name = plain(name)
+		-- Classic returns name, rank, category. Forever returns name, category, icon, level,
+		-- rank. So the rank and category are found by what they look like.
+		local values = { GetTrainerServiceInfo(i) }
+		local name = plain(values[1])
+		local category, sub
+		for j = 2, #values do
+			local value = plain(values[j])
+			if type(value) == "string" then
+				if CATEGORIES[value] and not category then
+					category = value
+				elseif value:find("%d") and not sub then
+					sub = value
+				end
+			end
+		end
 		if name and category ~= "header" then
 			local ability, rankText = splitName(name)
 			if ns.Data.Abilities[ability] then
 				local level = GetTrainerServiceLevelReq and plain(GetTrainerServiceLevelReq(i)) or nil
 				if type(level) ~= "number" or level < 1 then level = nil end
-				remember(ability, K.RankNumber(rankText or plain(sub)), level)
+				remember(ability, K.RankNumber(rankText or sub), level)
 				found = found + 1
 			end
 		end
@@ -417,7 +435,8 @@ end
 -- window, so a bug report shows exactly what Tamer had to work with.
 function K.PrintDebug()
 	ns.Say("debug. Run it with Beast Training open to include the window.")
-	print("  GetPetTrainingPoints: " .. (GetPetTrainingPoints and show(GetPetTrainingPoints()) or "missing"))
+	print("  GetPetTrainingPoints: " .. (GetPetTrainingPoints and show(GetPetTrainingPoints()) or "missing")
+		.. ", C_PetInfo: " .. (C_PetInfo and C_PetInfo.GetPetTrainingPoints and show(C_PetInfo.GetPetTrainingPoints()) or "missing"))
 	print("  npc: " .. show(UnitExists("npc"), UnitName("npc")))
 	print("  APIs: C_SpellBook=" .. tostring(C_SpellBook ~= nil) .. " GetSpellBookItemName=" .. tostring(GetSpellBookItemName ~= nil)
 		.. " C_TradeSkillUI=" .. tostring(C_TradeSkillUI ~= nil) .. " GetCraftInfo=" .. tostring(GetCraftInfo ~= nil))

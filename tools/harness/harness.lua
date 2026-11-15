@@ -564,7 +564,8 @@ section("Forever's newer APIs", function()
 	local services = { { "Growl", "Rank 5", "available", 40 }, { "Claw (Rank 4)", "", "unavailable", 24 } }
 	local npc = true
 	env.GetNumTrainerServices = function() return #services end
-	env.GetTrainerServiceInfo = function(i) local s = services[i]; return s[1], s[2], s[3] end
+	-- In the order Forever returns them: name, category, icon, level, rank.
+	env.GetTrainerServiceInfo = function(i) local s = services[i]; return s[1], s[3], 132140, s[4], s[2], "" end
 	env.GetTrainerServiceLevelReq = function(i) return services[i][4] end
 	local savedExists = env.UnitExists
 	env.UnitExists = function(unit) if unit == "npc" then return npc end return savedExists(unit) end
@@ -576,10 +577,14 @@ section("Forever's newer APIs", function()
 		and char.known.Growl[5].level == 40)
 	check("with the rank in the name", char.known.Claw[4] ~= nil)
 
+	-- Forever's training points.
+	env.C_PetInfo = { GetPetTrainingPoints = function() return 90, 11 end }
+	check("reads training points from C_PetInfo", ns.Knowledge.Pet().points == 79, ns.Knowledge.Pet().points)
+
 	local n = #chatOut
 	slash("debug")
-	check("/tamer debug prints trainer services", printedSince(n, "service 1: Growl | Rank 5 | available | level 40"))
-	env.GetNumTrainerServices, env.GetTrainerServiceInfo, env.GetTrainerServiceLevelReq, env.UnitExists = nil, nil, nil, savedExists
+	check("/tamer debug prints trainer services", printedSince(n, "service 1: Growl | available | 132140 | 40 | Rank 5"))
+	env.GetNumTrainerServices, env.GetTrainerServiceInfo, env.GetTrainerServiceLevelReq, env.UnitExists, env.C_PetInfo = nil, nil, nil, savedExists, nil
 	check("/tamer debug prints the pet's spellbook", printedSince(n, "pet 1: Bite"))
 	check("and the recipes", printedSince(n, "recipe 30: learned=true, name=Bite"))
 
