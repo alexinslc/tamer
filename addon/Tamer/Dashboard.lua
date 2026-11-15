@@ -541,7 +541,8 @@ end
 -- tallest window does the scrollbar show, and the cards get narrower to make room for it.
 function Dashboard.Refresh()
 	if not frame or not frame:IsShown() then return end
-	local view = MAX_HEIGHT - TOP - BOTTOM
+	local room = (frame:GetTop() or MAX_HEIGHT + 120) - 120
+	local view = math.max(MIN_HEIGHT, math.min(MAX_HEIGHT, room)) - TOP - BOTTOM
 	content:SetWidth(WIDTH - 2 * PAD - 4)
 	draw()
 	local fits = y <= view
@@ -552,7 +553,9 @@ function Dashboard.Refresh()
 	local bar = scrollBar()
 	if bar then bar:SetShown(not fits) end
 	scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", fits and -PAD - 2 or -PAD - BAR, BOTTOM)
-	frame:SetHeight(math.max(MIN_HEIGHT, math.min(MAX_HEIGHT, TOP + y + BOTTOM)))
+	-- Never taller than the room below the window's top, keeping clear of the action bars.
+	local tallest = math.max(MIN_HEIGHT, math.min(MAX_HEIGHT, room))
+	frame:SetHeight(math.max(MIN_HEIGHT, math.min(tallest, TOP + y + BOTTOM)))
 	if fits then scroll:SetVerticalScroll(0) end
 end
 

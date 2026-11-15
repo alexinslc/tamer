@@ -38,6 +38,7 @@ local W = {
 	pet = { name = "Behr", level = 15, family = "Bear", xp = 1200, xpMax = 3400, total = 14, spent = 2 },
 	petSpells = { { "Claw", "Rank 2" }, { "Bite", "Rank 1" }, { "Growl", "Rank 1" }, { "Attack", "" } },
 	crafts = {},
+	time = 0,
 }
 
 local chatOut = {}
@@ -189,6 +190,7 @@ local stubs = {
 	ERR_LEARN_ABILITY_S = "You have learned a new ability: %s.",
 
 	issecretvalue = function() return false end,
+	GetTime = function() return W.time end,
 	UnitClass = function(unit)
 		if unit == "player" then return W.class, W.class end
 	end,
@@ -519,6 +521,7 @@ section("After Beast Training", function()
 end)
 
 section("The level-up line", function()
+	W.time = 100 -- Long after login.
 	local n = #chatOut
 	W.pet.level = 16
 	fire("UNIT_LEVEL", "pet")
@@ -535,6 +538,16 @@ section("The level-up line", function()
 	check("names the pet and the rank", printedSince(n, "Behr can now learn Growl (Rank 3). Cast Beast Training to teach it."), chatOut[#chatOut])
 	fire("UNIT_LEVEL", "pet")
 	check("doesn't repeat itself", countSince(n, "can now learn") == 1)
+
+	-- Right after a loading screen, the game can report 0 training points, then the real number.
+	n = #chatOut
+	local saved = W.pet.total
+	W.pet.total = 0
+	fire("PLAYER_ENTERING_WORLD")
+	W.pet.total = saved
+	fire("UNIT_PET_TRAINING_POINTS", "player")
+	check("quiet while the game fills in the pet after loading", countSince(n, "can now learn") == 0, chatOut[#chatOut])
+	W.time = 200
 
 	-- After /reload the game can report the pet before its training points.
 	n = #chatOut

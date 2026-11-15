@@ -334,6 +334,19 @@ end
 
 local last -- The pet and its ready ranks the last time Tamer looked.
 
+-- For a few seconds after login, /reload or a loading screen, the game fills in the pet's
+-- level and training points bit by bit, starting from zero. Nothing then is a level-up.
+local SETTLE_SECONDS = 10
+local quietUntil = 0
+
+local function clock()
+	return GetTime and GetTime() or 0
+end
+
+local function settle()
+	quietUntil = clock() + SETTLE_SECONDS
+end
+
 local function readyKeys(advice)
 	local keys = {}
 	for _, entry in ipairs(advice.ready or {}) do
@@ -366,7 +379,7 @@ local function checkLevelUp()
 	-- /reload, the pet's level or training points can arrive late, and that isn't a level-up.
 	local leveled = last and pet and (last.level or 0) > 0 and now.level > last.level
 	local morePoints = last and pet and last.points ~= nil and now.points ~= nil and now.points > last.points
-	local grew = leveled or morePoints
+	local grew = (leveled or morePoints) and clock() >= quietUntil
 	if grew and last.name == now.name and last.family == now.family and last.version == now.version then
 		local fresh = {}
 		for key, entry in pairs(now.ready) do
@@ -412,7 +425,10 @@ end
 
 handlers.PET_BAR_UPDATE = changed
 handlers.SPELLS_CHANGED = changed
-handlers.PLAYER_ENTERING_WORLD = changed
+function handlers.PLAYER_ENTERING_WORLD()
+	settle()
+	changed()
+end
 
 function handlers.CRAFT_SHOW()
 	K.ReadBeastTraining()
@@ -433,6 +449,7 @@ end
 local frame
 function K.Start()
 	if frame then return end
+	settle()
 	frame = CreateFrame("Frame")
 	-- A client without one of these events errors on registering it, so each is tried alone.
 	for event in pairs(handlers) do
