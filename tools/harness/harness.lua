@@ -536,6 +536,15 @@ section("The level-up line", function()
 	fire("UNIT_LEVEL", "pet")
 	check("doesn't repeat itself", countSince(n, "can now learn") == 1)
 
+	-- After /reload the game can report the pet before its training points.
+	n = #chatOut
+	local total = W.pet.total
+	W.pet.total = nil
+	fire("UNIT_PET", "player")
+	W.pet.total = total
+	fire("UNIT_PET_TRAINING_POINTS", "player")
+	check("quiet when training points arrive late after a reload", countSince(n, "can now learn") == 0, chatOut[#chatOut])
+
 	n = #chatOut
 	W.pet = { name = "Fang", level = 25, family = "Wolf", xp = 0, xpMax = 100, total = 20, spent = 0 }
 	W.petSpells = { { "Bite", "Rank 1" } }

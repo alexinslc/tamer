@@ -67,7 +67,12 @@ local function showTooltip(owner, lines)
 		GameTooltip:SetOwner(owner, "ANCHOR_NONE")
 		GameTooltip:ClearAllPoints()
 		GameTooltip:SetPoint("TOP", owner, "TOP", 0, 0)
-		GameTooltip:SetPoint("LEFT", frame, "RIGHT", 4, 0)
+		local right, screen = frame:GetRight(), UIParent:GetRight()
+		if right and screen and right + 280 > screen then
+			GameTooltip:SetPoint("RIGHT", frame, "LEFT", -4, 0)
+		else
+			GameTooltip:SetPoint("LEFT", frame, "RIGHT", 4, 0)
+		end
 	else
 		GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
 	end
@@ -489,6 +494,16 @@ end
 -- Building and drawing
 -------------------------------------------------------------------------------
 
+-- Anchors the window by its top-left corner, so it grows and shrinks downward and the
+-- header stays where you put it. The saved spot is kept the same way.
+local function pinTop()
+	local left, top = frame:GetLeft(), frame:GetTop()
+	if not left or not top then return end
+	frame:ClearAllPoints()
+	frame:SetPoint("TOPLEFT", UIParent, "BOTTOMLEFT", left, top)
+	ns.GetDB().dashboardPosition = { point = "TOPLEFT", relativePoint = "BOTTOMLEFT", x = left, y = top }
+end
+
 local function scrollBar()
 	local bar = scroll.ScrollBar or _G[(scroll:GetName() or "") .. "ScrollBar"]
 	return type(bar) == "table" and bar or nil
@@ -602,8 +617,10 @@ function Dashboard.Build()
 	content:SetSize(WIDTH - 2 * PAD - 4, 1)
 	scroll:SetScrollChild(content)
 
+	frame:HookScript("OnDragStop", pinTop)
 	frame:SetScript("OnShow", function()
 		ns.PlayUISound("IG_CHARACTER_INFO_OPEN")
+		pinTop()
 		syncTeach()
 		Dashboard.Refresh()
 	end)

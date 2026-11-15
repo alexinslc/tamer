@@ -360,9 +360,13 @@ local function checkLevelUp()
 	local pet = advice.pet
 	local now = {
 		name = pet and pet.name, family = pet and pet.family, level = pet and pet.level,
-		points = pet and pet.points or 0, version = K.version, ready = readyKeys(advice),
+		points = pet and pet.points, version = K.version, ready = readyKeys(advice),
 	}
-	local grew = last and pet and (now.level > (last.level or now.level) or now.points > (last.points or now.points))
+	-- Only growth from a value the game had already given counts. Right after login or
+	-- /reload, the pet's level or training points can arrive late, and that isn't a level-up.
+	local leveled = last and pet and (last.level or 0) > 0 and now.level > last.level
+	local morePoints = last and pet and last.points ~= nil and now.points ~= nil and now.points > last.points
+	local grew = leveled or morePoints
 	if grew and last.name == now.name and last.family == now.family and last.version == now.version then
 		local fresh = {}
 		for key, entry in pairs(now.ready) do
