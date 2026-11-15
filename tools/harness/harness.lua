@@ -508,6 +508,8 @@ section("After Beast Training", function()
 	check("the tooltip lists the beasts", tip:find("Test Bear A, level 14-15, Loch Modan", 1, true), tip)
 	check("and flags the ones too high to tame", tip:find("Test Bear C, level 18-19, Redridge Mountains (too high for you)", 1, true), tip)
 	check("no long sentences in the window", not text:find("Click one to see", 1, true))
+	local height = namedFrames.TamerDashboard:GetHeight()
+	check("the window fits its cards", height >= 240 and height < 600, height)
 
 	-- Another family's window adds to what you know, and never removes anything.
 	W.crafts = { { "Dash", "Rank 1", "optimal", 5, 30 } }

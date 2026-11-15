@@ -7,7 +7,10 @@ local _, ns = ...
 local Dashboard = {}
 ns.Dashboard = Dashboard
 
-local WIDTH, HEIGHT = 340, 480
+local WIDTH = 340
+local MIN_HEIGHT, MAX_HEIGHT = 240, 600
+local TOP, BOTTOM = 88, 52 -- The header above the cards, and the Teach button below them.
+local BAR = 24 -- Room for the scrollbar when the cards don't fit.
 local PAD = 10
 local CARD_PAD = 10
 local TILE_ICON = 40
@@ -59,7 +62,15 @@ end
 -- lines[1] is the title. Each later line is a string, or { text, color }.
 local function showTooltip(owner, lines)
 	if not lines then return end
-	GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+	-- Beside the window, level with what you're hovering, so it never covers the window.
+	if frame and owner ~= teach then
+		GameTooltip:SetOwner(owner, "ANCHOR_NONE")
+		GameTooltip:ClearAllPoints()
+		GameTooltip:SetPoint("TOP", owner, "TOP", 0, 0)
+		GameTooltip:SetPoint("LEFT", frame, "RIGHT", 4, 0)
+	else
+		GameTooltip:SetOwner(owner, "ANCHOR_RIGHT")
+	end
 	GameTooltip:SetText(lines[1], 1, 0.82, 0)
 	for i = 2, #lines do
 		local line = lines[i]
@@ -356,6 +367,7 @@ local function addFind(advice)
 			title = showAllFinds and "Show less" or ("Show %d more"):format(hidden),
 			onClick = function()
 				showAllFinds = not showAllFinds
+				scroll:SetVerticalScroll(0)
 				Dashboard.Refresh()
 			end,
 		})
@@ -477,8 +489,12 @@ end
 -- Building and drawing
 -------------------------------------------------------------------------------
 
-function Dashboard.Refresh()
-	if not frame or not frame:IsShown() then return end
+local function scrollBar()
+	local bar = scroll.ScrollBar or _G[(scroll:GetName() or "") .. "ScrollBar"]
+	return type(bar) == "table" and bar or nil
+end
+
+local function draw()
 	releaseAll()
 	y = 0
 	local advice
@@ -506,9 +522,28 @@ function Dashboard.Refresh()
 	content:SetHeight(math.max(y, 1))
 end
 
+-- Draws the cards, then sizes the window to fit them. Only when they don't fit under the
+-- tallest window does the scrollbar show, and the cards get narrower to make room for it.
+function Dashboard.Refresh()
+	if not frame or not frame:IsShown() then return end
+	local view = MAX_HEIGHT - TOP - BOTTOM
+	content:SetWidth(WIDTH - 2 * PAD - 4)
+	draw()
+	local fits = y <= view
+	if not fits then
+		content:SetWidth(WIDTH - 2 * PAD - 4 - BAR)
+		draw()
+	end
+	local bar = scrollBar()
+	if bar then bar:SetShown(not fits) end
+	scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", fits and -PAD - 2 or -PAD - BAR, BOTTOM)
+	frame:SetHeight(math.max(MIN_HEIGHT, math.min(MAX_HEIGHT, TOP + y + BOTTOM)))
+	if fits then scroll:SetVerticalScroll(0) end
+end
+
 function Dashboard.Build()
 	if frame then return end
-	frame = ns.NewWindow("TamerDashboard", "Tamer", ns.Icon, WIDTH, HEIGHT)
+	frame = ns.NewWindow("TamerDashboard", "Tamer", ns.Icon, WIDTH, MIN_HEIGHT)
 	frame:SetFrameStrata("MEDIUM")
 	frame:SetToplevel(true)
 	ns.PlaceFrame(frame, "dashboardPosition", "CENTER", UIParent, "CENTER", 0, 0)
@@ -547,17 +582,24 @@ function Dashboard.Build()
 
 	local ok, made = pcall(CreateFrame, "ScrollFrame", "TamerDashboardScroll", frame, "UIPanelScrollFrameTemplate")
 	scroll = ok and made or CreateFrame("ScrollFrame", nil, frame)
-	scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD + 2, -88)
-	scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -PAD - 24, PAD + 40)
+	scroll:SetPoint("TOPLEFT", frame, "TOPLEFT", PAD + 2, -TOP)
+	scroll:SetPoint("BOTTOMRIGHT", frame, "BOTTOMRIGHT", -PAD - BAR, BOTTOM)
 	scroll:EnableMouseWheel(true)
+	-- One wheel tick moves about one row. The scrollbar, when there is one, is moved
+	-- instead of the frame, so the two stay in step.
 	scroll:SetScript("OnMouseWheel", function(self, delta)
 		local range = self:GetVerticalScrollRange() or 0
-		local value = math.min(math.max((self:GetVerticalScroll() or 0) - delta * 30, 0), range)
-		self:SetVerticalScroll(value)
+		local value = math.min(math.max((self:GetVerticalScroll() or 0) - delta * ROW_HEIGHT * 2, 0), range)
+		local bar = scrollBar()
+		if bar and bar.SetValue and bar:IsShown() then
+			bar:SetValue(value)
+		else
+			self:SetVerticalScroll(value)
+		end
 	end)
 
 	content = CreateFrame("Frame", nil, scroll)
-	content:SetSize(WIDTH - 2 * PAD - 28, 1)
+	content:SetSize(WIDTH - 2 * PAD - 4, 1)
 	scroll:SetScrollChild(content)
 
 	frame:SetScript("OnShow", function()
