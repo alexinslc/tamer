@@ -573,6 +573,10 @@ section("Learning from chat", function()
 	check("with its level from the data", char.known.Bite[3].level == 16)
 	fire("CHAT_MSG_SYSTEM", "You have learned a new spell: Fireball (Rank 3).")
 	check("other spells are ignored", char.known.Fireball == nil)
+	fire("CHAT_MSG_SYSTEM", "Your pet has learned Dash (Rank 3).")
+	check("other wording about learning a rank counts too", char.known.Dash and char.known.Dash[3] ~= nil)
+	fire("CHAT_MSG_SYSTEM", "Fireball (Rank 3) is ready.")
+	check("but only lines about learning", char.known.Fireball == nil)
 end)
 
 section("The Teach button in combat", function()
@@ -638,7 +642,18 @@ section("Forever's newer APIs", function()
 	local savedExists = env.UnitExists
 	env.UnitExists = function(unit) if unit == "npc" then return npc end return savedExists(unit) end
 	fire("TRAINER_SHOW")
-	check("a Pet Trainer NPC's window isn't read", not (char.known.Growl and char.known.Growl[5]))
+	check("a Pet Trainer NPC's ranks for sale aren't counted", not (char.known.Growl and char.known.Growl[5]))
+	-- Buying a rank marks it as learned in the Pet Trainer's window.
+	char.seenFamilies.Wolf = nil
+	services[1][3] = "used"
+	local tradeSkills = env.C_TradeSkillUI
+	env.C_TradeSkillUI = nil
+	fire("TRAINER_UPDATE")
+	env.C_TradeSkillUI = tradeSkills
+	check("a rank bought from a Pet Trainer counts", char.known.Growl and char.known.Growl[5] ~= nil)
+	check("but a Pet Trainer doesn't stand in for Beast Training", not char.seenFamilies.Wolf)
+	char.known.Growl[5] = nil
+	services[1][3] = "available"
 	npc = false
 	fire("TRAINER_SHOW")
 	check("reads Beast Training as a trainer window", char.known.Growl and char.known.Growl[5]

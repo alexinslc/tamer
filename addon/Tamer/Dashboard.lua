@@ -18,6 +18,7 @@ local ROW_ICON = 28
 local ROW_HEIGHT = 34
 local FIND_SHOWN = 3
 local BEAST_TRAINING = 5149
+local CALL_PET_ICON = "Interface\\Icons\\Ability_Hunter_BeastCall"
 
 local frame, header, scroll, content, teach
 local showAllFinds = false
@@ -400,7 +401,9 @@ local function setPortrait(pet)
 	if pet and texture and SetPortraitTexture then
 		SetPortraitTexture(texture, "pet")
 	elseif frame.SetPortraitToAsset then
-		frame:SetPortraitToAsset(ns.Icon)
+		-- With no pet, the Call Pet icon. It fills the circle, where Tamer's own icon has a
+		-- see-through background.
+		frame:SetPortraitToAsset(CALL_PET_ICON)
 	end
 end
 

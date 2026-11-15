@@ -227,12 +227,13 @@ local function readTradeSkill()
 end
 
 -- Forever's Beast Training window, if it's a trainer window. A Pet Trainer NPC uses the same
--- window to sell ranks you don't know yet, so a window with an NPC behind it is skipped.
+-- window to sell ranks. There, only the ranks it marks as already learned are ones you
+-- know, so buying a rank counts as soon as the window updates.
 local CATEGORIES = { available = true, unavailable = true, used = true, header = true }
 
 local function readTrainer()
 	if not GetNumTrainerServices or not GetTrainerServiceInfo then return 0 end
-	if UnitExists("npc") then return 0 end
+	local atTrainer = UnitExists("npc")
 	local found = 0
 	for i = 1, GetNumTrainerServices() or 0 do
 		-- Classic returns name, rank, category. Forever returns name, category, icon, level,
@@ -250,7 +251,7 @@ local function readTrainer()
 				end
 			end
 		end
-		if name and category ~= "header" then
+		if name and category ~= "header" and (not atTrainer or category == "used") then
 			local ability, rankText = splitName(name)
 			if ns.Data.Abilities[ability] then
 				local level = GetTrainerServiceLevelReq and plain(GetTrainerServiceLevelReq(i)) or nil
@@ -263,7 +264,9 @@ local function readTrainer()
 			end
 		end
 	end
-	return found
+	-- A Pet Trainer only shows the trainer's abilities, not your pet family's, so it
+	-- doesn't stand in for Beast Training.
+	return atTrainer and 0 or found
 end
 
 -- Reads the open Beast Training window. It lists the ranks the Hunter knows for the
@@ -300,6 +303,18 @@ function K.ReadLearnMessage(message)
 			ability = ability or what
 			if ns.Data.Abilities[ability] then
 				return remember(ability, K.RankNumber(rankText))
+			end
+		end
+	end
+	-- Forever may word it differently. Any system line about learning a pet ability rank
+	-- counts, since you can only learn or teach a rank you know.
+	if message:lower():find("learn") then
+		for ability, rank in message:gmatch("([%a][%a' ]-) %(Rank (%d+)%)") do
+			ability = ability:match("([%a']+[%a' ]*)$")
+			for name in pairs(ns.Data.Abilities) do
+				if ability and ability:sub(-#name) == name then
+					return remember(name, tonumber(rank))
+				end
 			end
 		end
 	end
