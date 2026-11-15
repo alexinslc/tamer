@@ -41,6 +41,13 @@ function ns.BuildMinimapButton()
 	border:SetTexture("Interface\\Minimap\\MiniMap-TrackingBorder")
 	border:SetPoint("TOPLEFT")
 
+	-- A dark disc behind the icon, like other minimap buttons, so the map doesn't show
+	-- through around the wolf.
+	local background = button:CreateTexture(nil, "BACKGROUND")
+	background:SetSize(20, 20)
+	background:SetTexture("Interface\\Minimap\\UI-Minimap-Background")
+	background:SetPoint("TOPLEFT", 6, -6)
+
 	local icon = button:CreateTexture(nil, "ARTWORK")
 	icon:SetSize(20, 20)
 	icon:SetTexture(ns.MinimapIcon)

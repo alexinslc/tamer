@@ -12,6 +12,32 @@ ns.Data.Families = { "Bat", "Bear", "Boar", "Carrion Bird", "Cat", "Crab", "Croc
 -- Prey", so either name gets the Owl abilities until the game shows which it uses.
 ns.Data.FamilyAliases = { ["Bird of Prey"] = "Owl" }
 
+-- Each ability's icon in Classic. Tamer prefers the icon the game shows in the pet's
+-- spellbook or in Beast Training, and falls back to these.
+ns.Data.Icons = {
+	["Bite"] = "Interface\\Icons\\Ability_Racial_Cannibalize",
+	["Charge"] = "Interface\\Icons\\Ability_Hunter_Pet_Boar",
+	["Claw"] = "Interface\\Icons\\Ability_Druid_Rake",
+	["Cower"] = "Interface\\Icons\\Ability_Druid_Cower",
+	["Dash"] = "Interface\\Icons\\Ability_Druid_Dash",
+	["Dive"] = "Interface\\Icons\\Spell_Shadow_BurningSpirit",
+	["Furious Howl"] = "Interface\\Icons\\Ability_Hunter_Pet_Wolf",
+	["Growl"] = "Interface\\Icons\\Ability_Physical_Taunt",
+	["Lightning Breath"] = "Interface\\Icons\\Spell_Nature_Lightning",
+	["Prowl"] = "Interface\\Icons\\Ability_Druid_SupriseAttack",
+	["Scorpid Poison"] = "Interface\\Icons\\Ability_PoisonSting",
+	["Screech"] = "Interface\\Icons\\Ability_Hunter_Pet_Bat",
+	["Shell Shield"] = "Interface\\Icons\\Ability_Hunter_Pet_Turtle",
+	["Thunderstomp"] = "Interface\\Icons\\Ability_Hunter_Pet_Gorilla",
+	["Great Stamina"] = "Interface\\Icons\\Spell_Nature_UnyeildingStamina",
+	["Natural Armor"] = "Interface\\Icons\\Spell_Nature_SpiritArmor",
+	["Arcane Resistance"] = "Interface\\Icons\\Spell_Nature_StarFall",
+	["Fire Resistance"] = "Interface\\Icons\\Spell_Fire_FireArmor",
+	["Frost Resistance"] = "Interface\\Icons\\Spell_Frost_FrostWard",
+	["Nature Resistance"] = "Interface\\Icons\\Spell_Nature_ResistNature",
+	["Shadow Resistance"] = "Interface\\Icons\\Spell_Shadow_AntiShadow",
+}
+
 -- Each ability: where the Hunter learns it ("beast" = tame a wild beast that knows it,
 -- "trainer" = a Pet Trainer), which families can learn it ("all" or a list), and its ranks
 -- in order, each with the pet level it needs and its training point cost.

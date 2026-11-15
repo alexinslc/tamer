@@ -66,6 +66,20 @@ def read_png_rgba(path):
     return width, height, rows
 
 
+# The artist's exports are only 88-99% opaque inside the art, which lets the minimap show
+# through the icon. Alpha at or above this counts as solid; the soft edge below it is
+# stretched to match.
+SOLID = 192
+
+
+def solidify(rows):
+    for row in rows:
+        for i in range(3, len(row), 4):
+            a = row[i]
+            row[i] = 255 if a >= SOLID else round(a * 255 / SOLID)
+    return rows
+
+
 def write_tga(path, width, height, rows):
     # Uncompressed true-color, 32 bits, 8 alpha bits, top-left origin. TGA stores BGRA.
     header = struct.pack("<BBBHHBHHHHBB", 0, 0, 2, 0, 0, 0, 0, 0, width, height, 32, 0x28)
@@ -88,7 +102,7 @@ def main():
                  os.path.join(ROOT, "art", source), "--out", resized],
                 check=True, stdout=subprocess.DEVNULL)
             width, height, rows = read_png_rgba(resized)
-            write_tga(os.path.join(TEXTURES, target), width, height, rows)
+            write_tga(os.path.join(TEXTURES, target), width, height, solidify(rows))
             print(f"Wrote addon/Tamer/Textures/{target} ({width}x{height})")
 
 

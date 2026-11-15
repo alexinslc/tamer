@@ -25,6 +25,24 @@ local function rankCost(ability, rank)
 	return entry and entry.cost or nil, entry and entry.level or nil
 end
 
+-- The icon the game showed for an ability, saved so the window can use it any time.
+local function rememberIcon(ability, icon)
+	icon = plain(icon)
+	if not ability or (type(icon) ~= "number" and type(icon) ~= "string") or icon == 0 or icon == "" then return end
+	local db = ns.GetDB()
+	if not db then return end
+	db.icons = db.icons or {}
+	db.icons[ability] = icon
+end
+
+local QUESTION_MARK = "Interface\\Icons\\INV_Misc_QuestionMark"
+
+-- An ability's icon: what the game showed, then Tamer's data, then a question mark.
+function K.Icon(ability)
+	local db = ns.GetDB()
+	return (db and db.icons and db.icons[ability]) or (ns.Data.Icons and ns.Data.Icons[ability]) or QUESTION_MARK
+end
+
 -------------------------------------------------------------------------------
 -- Reading
 -------------------------------------------------------------------------------
@@ -93,6 +111,14 @@ local function petSpellAt(index)
 	return name, sub, id
 end
 
+local function petSpellTexture(index)
+	if C_SpellBook and C_SpellBook.GetSpellBookItemTexture and Enum and Enum.SpellBookSpellBank then
+		return C_SpellBook.GetSpellBookItemTexture(index, Enum.SpellBookSpellBank.Pet)
+	elseif GetSpellBookItemTexture then
+		return GetSpellBookItemTexture(index, BOOK)
+	end
+end
+
 -- How many slots to look at. When the game won't say, look until the book runs out.
 local function petSlotCount()
 	local count = HasPetSpells and plain(HasPetSpells()) or nil
@@ -118,7 +144,10 @@ function K.PetRanks()
 		local name, sub, id = petSpellAt(i)
 		if not name and not exact then break end
 		local ability, rank = readAbility(name, sub, id)
-		if ability and rank > (ranks[ability] or 0) then ranks[ability] = rank end
+		if ability then
+			if rank > (ranks[ability] or 0) then ranks[ability] = rank end
+			rememberIcon(ability, petSpellTexture(i))
+		end
 	end
 	return ranks
 end
@@ -227,6 +256,9 @@ local function readTrainer()
 				local level = GetTrainerServiceLevelReq and plain(GetTrainerServiceLevelReq(i)) or nil
 				if type(level) ~= "number" or level < 1 then level = nil end
 				remember(ability, K.RankNumber(rankText or sub), level)
+				local icon = GetTrainerServiceIcon and GetTrainerServiceIcon(i)
+				if type(plain(icon)) ~= "number" and type(plain(icon)) ~= "string" then icon = values[3] end
+				rememberIcon(ability, icon)
 				found = found + 1
 			end
 		end

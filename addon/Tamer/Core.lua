@@ -140,6 +140,8 @@ function handlers.PLAYER_LOGIN()
 	char.seenFamilies = char.seenFamilies or {}
 
 	if ns.BuildMinimapButton then ns.BuildMinimapButton() end
+	-- Built now, before any fight, because its Teach button can't be made in combat.
+	if ns.Dashboard then ns.Dashboard.Build() end
 	if ns.Knowledge then ns.Knowledge.Start() end
 end
 

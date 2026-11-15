@@ -94,6 +94,10 @@ function frameMethods:Hide()
 end
 function frameMethods:SetShown(shown) if shown then self:Show() else self:Hide() end end
 function frameMethods:IsShown() return not self._hidden end
+function frameMethods:SetAlpha(a) self._alpha = a end
+function frameMethods:GetAlpha() return self._alpha or 1 end
+function frameMethods:SetAttribute(key, value) self._attributes = self._attributes or {}; self._attributes[key] = value end
+function frameMethods:GetAttribute(key) return self._attributes and self._attributes[key] end
 function frameMethods:SetSize(w, h) self._width, self._height = w, h end
 function frameMethods:SetWidth(w) self._width = w end
 function frameMethods:SetHeight(h) self._height = h end
@@ -104,7 +108,7 @@ function frameMethods:GetEffectiveScale() return 1 end
 function frameMethods:GetPoint() return "CENTER", nil, "CENTER", 10, 20 end
 function frameMethods:GetVerticalScroll() return 0 end
 function frameMethods:GetVerticalScrollRange() return 0 end
-function frameMethods:SetText(text) self._text = text end
+function frameMethods:SetText(text) self._text = text ~= nil and tostring(text) or nil end
 function frameMethods:GetText() return self._text end
 function frameMethods:GetStringHeight()
 	return 12 * math.max(1, math.ceil(#(self._text or "") / 50))
@@ -169,7 +173,14 @@ local stubs = {
 	unpack = unpack,
 	UIParent = newObject(nil),
 	Minimap = newObject(nil),
-	GameTooltip = newObject(nil),
+	GameTooltip = (function()
+		local tip = newObject(nil)
+		tip._lines = {}
+		tip.SetOwner = function(self) self._lines = {} end
+		tip.SetText = function(self, text) self._lines = { text } end
+		tip.AddLine = function(self, text) self._lines[#self._lines + 1] = text end
+		return tip
+	end)(),
 	SOUNDKIT = {},
 	PlaySound = function() end,
 	GetCursorPosition = function() return 0, 0 end,
@@ -407,6 +418,21 @@ local function dashboardText()
 	return table.concat(parts, "\n")
 end
 
+-- Hovers the row or tile showing this text and returns its tooltip as one string.
+local function hover(text)
+	local window = namedFrames.TamerDashboard
+	for _, f in ipairs(allFrames) do
+		if f._isText and f._text and f._text:find(text, 1, true) and effectiveShown(f) and isInside(f, window) then
+			local owner = f._parent
+			if owner._scripts.OnEnter then
+				owner._scripts.OnEnter(owner)
+				return table.concat(env.GameTooltip._lines, "\n")
+			end
+		end
+	end
+	return ""
+end
+
 local function clickRow(text)
 	local window = namedFrames.TamerDashboard
 	for _, f in ipairs(allFrames) do
@@ -444,11 +470,15 @@ section("The window before Beast Training", function()
 	check("/tamer opens the window", window and window:IsShown())
 	check("Escape closes it", env.UISpecialFrames[1] == "TamerDashboard")
 	local text = dashboardText()
-	check("shows the pet", text:find("Behr", 1, true) and text:find("Bear, level 15", 1, true), text)
-	check("shows training points left", text:find("12 training points", 1, true), text)
-	check("asks you to open Beast Training", text:find("Cast Beast Training once with Behr out", 1, true), text)
-	check("shows what the pet knows", text:find("Bite 1, Claw 2, Growl 1", 1, true), text)
-	check("doesn't guess what's ready", not text:find("Ready to train", 1, true), text)
+	check("shows the pet", text:find("Behr", 1, true) and text:find("Level 15 Bear", 1, true), text)
+	check("shows training points left", text:find("\n12\npoints", 1, true), text)
+	check("asks you to open Beast Training", text:find("Open Beast Training once", 1, true), text)
+	check("doesn't guess what's ready", not text:find("can learn", 1, true), text)
+	local teach = namedFrames.TamerTeachButton
+	check("has a Teach button", teach ~= nil and teach:IsShown())
+	check("which casts Beast Training", teach:GetAttribute("type") == "spell" and teach:GetAttribute("spell") == "Beast Training")
+	check("and says what it does", teach:GetText() == "Open Beast Training", teach:GetText())
+	check("the points have a tooltip", hover("points"):find("Training points", 1, true))
 end)
 
 section("After Beast Training", function()
@@ -465,19 +495,19 @@ section("After Beast Training", function()
 	check("remembers the ranks you know", char.known.Growl and char.known.Growl[3] ~= nil)
 	check("remembers the family it saw them with", char.seenFamilies.Bear)
 	local text = dashboardText()
-	check("the prompt goes away", not text:find("Cast Beast Training once", 1, true), text)
-	check("ready to train", text:find("Ready to train", 1, true) and text:find("Bite (Rank 2)", 1, true) and text:find("Growl (Rank 2)", 1, true), text)
-	check("next upgrade with its level", text:find("Growl (Rank 3)", 1, true) and text:find("at level 20", 1, true), text)
-	check("go learn it", text:find("+ Claw (Rank 3)", 1, true), text)
-	check("beasts are hidden until you click", not text:find("Test Bear A", 1, true))
-
-	check("clicking an ability shows its beasts", clickRow("Claw (Rank 3)"))
-	text = dashboardText()
-	check("with level and zone", text:find("Test Bear A, level 14-15, Loch Modan", 1, true), text)
-	check("and flags the ones too high to tame", text:find("Test Bear B, level 20-21, Wetlands (too high", 1, true) == nil
-		and text:find("Test Bear C, level 18-19, Redridge Mountains (too high for you to tame yet)", 1, true), text)
-	clickRow("Claw (Rank 3)")
-	check("clicking again hides them", not dashboardText():find("Test Bear A", 1, true))
+	check("the prompt goes away", not text:find("Open Beast Training once", 1, true), text)
+	check("a green card says how many are ready", text:find("Behr can learn 2 things now", 1, true), text)
+	check("with an icon tile for each", text:find("\nBite\n", 1, true) and text:find("\nGrowl\n", 1, true), text)
+	check("the tile tooltip says the cost", hover("Bite"):find("Costs", 1, true), hover("Bite"))
+	check("the Teach button names the pet", namedFrames.TamerTeachButton:GetText() == "Teach Behr", namedFrames.TamerTeachButton:GetText())
+	check("coming soon, with its level", text:find("Coming soon", 1, true) and text:find("Growl (Rank 3)", 1, true)
+		and text:find("Level 20", 1, true) and text:find("5 more levels", 1, true), text)
+	check("go find these", text:find("Go find these", 1, true) and text:find("Claw (Rank 3)", 1, true), text)
+	check("with the nearest beast on the row", text:find("Test Bear A, Loch Modan", 1, true), text)
+	local tip = hover("Claw (Rank 3)")
+	check("the tooltip lists the beasts", tip:find("Test Bear A, level 14-15, Loch Modan", 1, true), tip)
+	check("and flags the ones too high to tame", tip:find("Test Bear C, level 18-19, Redridge Mountains (too high for you)", 1, true), tip)
+	check("no long sentences in the window", not text:find("Click one to see", 1, true))
 
 	-- Another family's window adds to what you know, and never removes anything.
 	W.crafts = { { "Dash", "Rank 1", "optimal", 5, 30 } }
@@ -521,6 +551,20 @@ section("Learning from chat", function()
 	check("other spells are ignored", char.known.Fireball == nil)
 end)
 
+section("The Teach button in combat", function()
+	local teach = namedFrames.TamerTeachButton
+	check("starts open with the window", namedFrames.TamerDashboard:IsShown() and teach:IsShown())
+	env.InCombatLockdown = function() return true end
+	ns.Dashboard.Toggle()
+	check("closing in combat leaves it alone but invisible", teach:IsShown() and teach:GetAlpha() == 0)
+	env.InCombatLockdown = function() return false end
+	fire("PLAYER_REGEN_ENABLED")
+	check("and hides it once combat ends", not teach:IsShown() and teach:GetAlpha() == 1)
+	ns.Dashboard.Toggle()
+	check("opening again shows it", teach:IsShown())
+	env.InCombatLockdown = nil
+end)
+
 section("Forever's newer APIs", function()
 	local char = ns.CharData()
 	char.seenFamilies.Wolf = nil
@@ -558,7 +602,7 @@ section("Forever's newer APIs", function()
 	check("numbers unranked ranks in order", char.known.Bite[1] and char.known.Bite[2] and char.known.Bite[3])
 	check("reads a rank in the name", char.known.Dash[2] ~= nil)
 	check("skips ranks you haven't learned", char.known["Furious Howl"] == nil)
-	check("the window stops asking for Beast Training", not dashboardText():find("Cast Beast Training once", 1, true), dashboardText())
+	check("the window stops asking for Beast Training", not dashboardText():find("Open Beast Training once", 1, true), dashboardText())
 
 	-- Or a trainer window, as Forever may use for Beast Training.
 	local services = { { "Growl", "Rank 5", "available", 40 }, { "Claw (Rank 4)", "", "unavailable", 24 } }
