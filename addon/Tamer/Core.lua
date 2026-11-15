@@ -170,11 +170,16 @@ function commands.status()
 	ns.Knowledge.PrintStatus()
 end
 
+function commands.debug()
+	ns.Knowledge.PrintDebug()
+end
+
 function commands.help()
 	say("commands:")
 	print("  /tamer: open or close the window")
 	print("  /tamer minimap: show or hide the minimap icon")
 	print("  /tamer status: print what Tamer can read about you and your pet")
+	print("  /tamer debug: print what the game returns, for bug reports")
 	print("  /tamer help: list the commands")
 end
 

@@ -48,26 +48,74 @@ function K.Pet()
 end
 
 local BOOK = BOOKTYPE_PET or "pet"
+local MAX_SLOTS = 200
 
-local function petSpellName(index)
-	if GetSpellBookItemName then
-		return GetSpellBookItemName(index, BOOK)
-	elseif GetSpellName then
-		return GetSpellName(index, BOOK)
+-- A spell's rank text, such as "Rank 3", from its spell ID.
+local function spellSubtext(id)
+	if not id then return nil end
+	local text
+	if C_Spell and C_Spell.GetSpellSubtext then
+		text = C_Spell.GetSpellSubtext(id)
+	elseif GetSpellSubtext then
+		text = GetSpellSubtext(id)
 	end
+	text = plain(text)
+	if text and text ~= "" then return text end
+	return nil
+end
+
+-- Splits "Bite (Rank 3)" into "Bite" and "Rank 3". Other names come back as they are.
+local function splitName(name)
+	local base, rankText = name:match("^(.-) %((.-)%)$")
+	if base and rankText:find("%d") then return base, rankText end
+	return name
+end
+
+-- The name, rank text and spell ID of one slot in the pet's spellbook. Forever runs on a
+-- newer engine than Classic, so the newer spellbook API comes first.
+local function petSpellAt(index)
+	local name, sub, id
+	if C_SpellBook and C_SpellBook.GetSpellBookItemName and Enum and Enum.SpellBookSpellBank then
+		name, sub, id = C_SpellBook.GetSpellBookItemName(index, Enum.SpellBookSpellBank.Pet)
+	elseif GetSpellBookItemName then
+		name, sub, id = GetSpellBookItemName(index, BOOK)
+	elseif GetSpellName then
+		name, sub = GetSpellName(index, BOOK)
+	end
+	name, sub = plain(name), plain(sub)
+	if (not id) and C_SpellBook and C_SpellBook.GetSpellBookItemInfo and Enum and Enum.SpellBookSpellBank then
+		local info = C_SpellBook.GetSpellBookItemInfo(index, Enum.SpellBookSpellBank.Pet)
+		id = type(info) == "table" and (info.spellID or info.actionID) or nil
+	end
+	return name, sub, id
+end
+
+-- How many slots to look at. When the game won't say, look until the book runs out.
+local function petSlotCount()
+	local count = HasPetSpells and plain(HasPetSpells()) or nil
+	if type(count) == "number" and count > 0 then return count, true end
+	return MAX_SLOTS, false
+end
+
+-- One pet ability: its name and rank, or nil when it isn't a pet ability Tamer knows.
+local function readAbility(name, sub, id)
+	if not name then return nil end
+	local base, rankText = splitName(name)
+	if not ns.Data.Abilities[base] then return nil end
+	if not sub or sub == "" then sub = rankText or spellSubtext(id) end
+	return base, K.RankNumber(sub)
 end
 
 -- The highest rank of each ability the pet knows, e.g. { Claw = 3, Growl = 2 }.
 function K.PetRanks()
 	local ranks = {}
-	local count = HasPetSpells and HasPetSpells() or 0
-	for i = 1, count or 0 do
-		local name, sub = petSpellName(i)
-		name = plain(name)
-		if name and ns.Data.Abilities[name] then
-			local rank = K.RankNumber(sub)
-			if rank > (ranks[name] or 0) then ranks[name] = rank end
-		end
+	if not UnitExists("pet") then return ranks end
+	local count, exact = petSlotCount()
+	for i = 1, count do
+		local name, sub, id = petSpellAt(i)
+		if not name and not exact then break end
+		local ability, rank = readAbility(name, sub, id)
+		if ability and rank > (ranks[ability] or 0) then ranks[ability] = rank end
 	end
 	return ranks
 end
@@ -85,23 +133,76 @@ local function remember(ability, rank, level, cost)
 	return isNew
 end
 
--- Reads the open Beast Training window. It lists the ranks the Hunter knows for the
--- current pet's family, so seeing it once per family is enough.
-function K.ReadBeastTraining()
-	if not GetNumCrafts or not GetCraftInfo then return end
+-- Classic's Beast Training window, which uses the craft API.
+local function readCrafts()
+	if not GetNumCrafts or not GetCraftInfo then return 0 end
 	local found = 0
 	for i = 1, GetNumCrafts() or 0 do
 		local name, sub, kind, _, _, cost, level = GetCraftInfo(i)
 		name = plain(name)
-		if name and kind ~= "header" and ns.Data.Abilities[name] then
-			remember(name, K.RankNumber(sub), plain(level), plain(cost))
-			found = found + 1
+		if name and kind ~= "header" then
+			local ability, rankText = splitName(name)
+			if ns.Data.Abilities[ability] then
+				remember(ability, K.RankNumber(plain(sub) or rankText), plain(level), plain(cost))
+				found = found + 1
+			end
 		end
 	end
+	return found
+end
+
+-- The recipes in the open trade skill window, as { id, name, rankText } for pet abilities.
+local function tradeSkillAbilities()
+	local list = {}
+	local ui = C_TradeSkillUI
+	if not ui or not ui.GetAllRecipeIDs or not ui.GetRecipeInfo then return list end
+	for _, id in ipairs(ui.GetAllRecipeIDs() or {}) do
+		local info = ui.GetRecipeInfo(id)
+		if type(info) == "table" and info.learned ~= false then
+			local name = plain(info.name)
+			if name then
+				local ability, rankText = splitName(name)
+				if ns.Data.Abilities[ability] then
+					rankText = rankText or plain(info.subText) or spellSubtext(id)
+					if rankText == "" then rankText = nil end
+					list[#list + 1] = { id = id, ability = ability, rankText = rankText }
+				end
+			end
+		end
+	end
+	return list
+end
+
+-- Forever's Beast Training window, which is a trade skill window. When a rank has no rank
+-- text, the ranks of an ability are numbered in spell ID order, since higher ranks have
+-- higher IDs.
+local function readTradeSkill()
+	local list = tradeSkillAbilities()
+	local unranked = {}
+	for _, entry in ipairs(list) do
+		if entry.rankText then
+			remember(entry.ability, K.RankNumber(entry.rankText))
+		else
+			unranked[entry.ability] = unranked[entry.ability] or {}
+			table.insert(unranked[entry.ability], entry.id)
+		end
+	end
+	for ability, ids in pairs(unranked) do
+		table.sort(ids)
+		for rank = 1, #ids do remember(ability, rank) end
+	end
+	return #list
+end
+
+-- Reads the open Beast Training window. It lists the ranks the Hunter knows for the
+-- current pet's family, so seeing it once per family is enough.
+function K.ReadBeastTraining()
+	local found = readCrafts() + readTradeSkill()
 	local pet = K.Pet()
 	if found > 0 and pet and pet.family then
 		ns.CharData().seenFamilies[pet.family] = true
 	end
+	return found
 end
 
 -- Turns a game string such as "You have learned a new spell: %s." into a pattern.
@@ -242,6 +343,10 @@ function handlers.CRAFT_SHOW()
 	changed()
 end
 handlers.CRAFT_UPDATE = handlers.CRAFT_SHOW
+-- Forever opens Beast Training as a trade skill window.
+handlers.TRADE_SKILL_SHOW = handlers.CRAFT_SHOW
+handlers.TRADE_SKILL_LIST_UPDATE = handlers.CRAFT_SHOW
+handlers.TRADE_SKILL_DATA_SOURCE_CHANGED = handlers.CRAFT_SHOW
 
 function handlers.CHAT_MSG_SYSTEM(message)
 	if K.ReadLearnMessage(message) then changed() end
@@ -259,6 +364,66 @@ function K.Start()
 		handlers[event](...)
 	end)
 	checkLevelUp()
+end
+
+-------------------------------------------------------------------------------
+-- /tamer debug
+-------------------------------------------------------------------------------
+
+local function show(...)
+	local parts = {}
+	for i = 1, select("#", ...) do local value = plain((select(i, ...))); parts[i] = tostring(value) end
+	return table.concat(parts, " | ")
+end
+
+local function fields(info)
+	if type(info) ~= "table" then return tostring(info) end
+	local parts = {}
+	for key, value in pairs(info) do
+		local kind = type(value)
+		if kind == "string" or kind == "number" or kind == "boolean" then
+			parts[#parts + 1] = key .. "=" .. tostring(value)
+		end
+	end
+	table.sort(parts)
+	return table.concat(parts, ", ")
+end
+
+-- Prints what the game returns for the pet's spellbook and the open trade skill or craft
+-- window, so a bug report shows exactly what Tamer had to work with.
+function K.PrintDebug()
+	ns.Say("debug. Open Beast Training first to include it.")
+	print("  APIs: C_SpellBook=" .. tostring(C_SpellBook ~= nil) .. " GetSpellBookItemName=" .. tostring(GetSpellBookItemName ~= nil)
+		.. " C_TradeSkillUI=" .. tostring(C_TradeSkillUI ~= nil) .. " GetCraftInfo=" .. tostring(GetCraftInfo ~= nil))
+	print("  HasPetSpells: " .. (HasPetSpells and show(HasPetSpells()) or "missing"))
+	local count, exact = petSlotCount()
+	for i = 1, math.min(count, 20) do
+		local name, sub, id = petSpellAt(i)
+		if not name and not exact then break end
+		print(("  pet %d: %s | sub=%s | id=%s | subtext=%s"):format(i, tostring(name), tostring(sub), tostring(id), tostring((spellSubtext(id)))))
+	end
+	local ui = C_TradeSkillUI
+	if ui and ui.GetAllRecipeIDs then
+		local base = ui.GetBaseProfessionInfo and ui.GetBaseProfessionInfo()
+		print("  Trade skill: " .. fields(base))
+		local ids = ui.GetAllRecipeIDs() or {}
+		print("  Recipes: " .. #ids)
+		for i = 1, math.min(#ids, 12) do
+			print(("  recipe %d: %s | subtext=%s"):format(ids[i], fields(ui.GetRecipeInfo and ui.GetRecipeInfo(ids[i])), tostring((spellSubtext(ids[i])))))
+		end
+	end
+	if GetNumCrafts then
+		print("  Crafts: " .. tostring(GetNumCrafts()))
+		for i = 1, math.min(GetNumCrafts() or 0, 12) do
+			print("  craft " .. i .. ": " .. show(GetCraftInfo(i)))
+		end
+	end
+	print("  Tamer read: " .. tostring(K.ReadBeastTraining()) .. " Beast Training ranks, pet ranks " .. (function()
+		local parts = {}
+		for ability, rank in pairs(K.PetRanks()) do parts[#parts + 1] = ability .. " " .. rank end
+		table.sort(parts)
+		return #parts > 0 and table.concat(parts, ", ") or "none"
+	end)())
 end
 
 -------------------------------------------------------------------------------

@@ -521,6 +521,53 @@ section("Learning from chat", function()
 	check("other spells are ignored", char.known.Fireball == nil)
 end)
 
+section("Forever's newer APIs", function()
+	local char = ns.CharData()
+	char.seenFamilies.Wolf = nil
+	local savedHas = env.HasPetSpells
+	-- Forever's spellbook: C_SpellBook, the rank only from the spell ID, and no count.
+	env.HasPetSpells = function() return nil end
+	env.Enum = { SpellBookSpellBank = { Player = 0, Pet = 1 } }
+	local book = { { "Bite", "", 17255 }, { "Dash (Rank 1)", nil, 23099 }, { "Growl", "Rank 2", 14916 } }
+	env.C_SpellBook = {
+		GetSpellBookItemName = function(index, bank)
+			if bank ~= 1 then return nil end
+			local spell = book[index]
+			if spell then return spell[1], spell[2], spell[3] end
+		end,
+	}
+	env.C_Spell = { GetSpellSubtext = function(id) if id == 17255 then return "Rank 4" end end }
+	local ranks = ns.Knowledge.PetRanks()
+	check("reads the pet's spellbook through C_SpellBook", ranks.Growl == 2, ranks.Growl)
+	check("takes the rank from the spell ID", ranks.Bite == 4, ranks.Bite)
+	check("takes the rank from the name", ranks.Dash == 1, ranks.Dash)
+
+	-- Forever's Beast Training: a trade skill window, not a craft window.
+	W.crafts = {}
+	local recipes = {
+		[30] = { name = "Bite", learned = true }, [10] = { name = "Bite", learned = true },
+		[20] = { name = "Bite", learned = true }, [40] = { name = "Dash (Rank 2)", learned = true },
+		[50] = { name = "Furious Howl", learned = false }, [60] = { name = "Smelt Copper", learned = true },
+	}
+	env.C_TradeSkillUI = {
+		GetAllRecipeIDs = function() return { 30, 10, 20, 40, 50, 60 } end,
+		GetRecipeInfo = function(id) return recipes[id] end,
+	}
+	fire("TRADE_SKILL_SHOW")
+	check("reads Beast Training from the trade skill window", char.seenFamilies.Wolf)
+	check("numbers unranked ranks in order", char.known.Bite[1] and char.known.Bite[2] and char.known.Bite[3])
+	check("reads a rank in the name", char.known.Dash[2] ~= nil)
+	check("skips ranks you haven't learned", char.known["Furious Howl"] == nil)
+	check("the window stops asking for Beast Training", not dashboardText():find("Cast Beast Training once", 1, true), dashboardText())
+
+	local n = #chatOut
+	slash("debug")
+	check("/tamer debug prints the pet's spellbook", printedSince(n, "pet 1: Bite"))
+	check("and the recipes", printedSince(n, "recipe 30: learned=true, name=Bite"))
+
+	env.HasPetSpells, env.Enum, env.C_SpellBook, env.C_Spell, env.C_TradeSkillUI = savedHas, nil, nil, nil, nil
+end)
+
 section("No pet, and not a Hunter", function()
 	local saved = W.pet
 	W.pet = nil
