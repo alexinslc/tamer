@@ -16,12 +16,13 @@ The full plan is in [docs/plan.md](docs/plan.md).
 
 ## What it is
 
-One small window for the pet you have out. Open it with the minimap icon or `/tamer`. It shows:
+One small window for the pet you have out. Open it with the minimap icon or `/tamer`.
 
-- **What your pet knows.**
-- **Ready to train:** ranks you know that your pet can learn right now, with their training point cost.
-- **Next upgrade:** ranks you know that your pet needs a higher level for.
-- **Go learn it:** the next rank of each ability you don't know yet. Click one to see up to three beasts that teach it, with their level and zone, or the Pet Trainer for abilities trainers teach.
+![The Tamer window](docs/screenshots/curseforge/01-window.png)
+
+- **Green card:** ranks you know that your pet can learn right now, as big icons with their training point cost. The Teach button opens Beast Training.
+- **Gold card:** ranks waiting on a pet level or more training points.
+- **Blue card:** the next rank of each ability you don't know yet, with the nearest beast that teaches it, or the Pet Trainer. Hover a row for up to three beasts with their level and zone.
 
 When your pet levels into a rank you can teach it, Tamer prints one line in chat. That's the only time it speaks up.
 

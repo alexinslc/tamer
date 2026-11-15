@@ -2,7 +2,7 @@
 
 Everything the project form asks for. Paste the description in Markdown mode.
 
-This is what's live for the 0.1.0 test version. Before 1.0, drop the early-testing line, add the artist's credit and "Screenshots are from the real game." to "Good to know", and add real screenshots to the gallery.
+This is what's live from 0.2.0. The gallery has the five images in [docs/screenshots/curseforge](screenshots/curseforge). Before 1.0, drop the early-testing line and add the artist's credit to "Good to know".
 
 | Field | Value |
 | --- | --- |
@@ -27,13 +27,17 @@ This is what's live for the 0.1.0 test version. Before 1.0, drop the early-testi
 
 ### What it shows
 
-Call your pet and open Tamer. It shows:
+Call your pet and open Tamer.
 
-- **Ready to train:** ranks you can teach your pet right now, with their training point cost.
-- **Next upgrade:** the next rank your pet can learn by leveling, and the level it needs.
-- **Go learn it:** ranks your pet's family can learn that you don't know yet. Click one to see the beasts that teach it, closest to your level first, with their level and zone.
+![The Tamer window](https://raw.githubusercontent.com/alexinslc/tamer/main/docs/screenshots/curseforge/01-window.png)
 
-Every rank says in plain words what to do next: train it, level up, save training points, or go tame a beast.
+- **Green:** what your pet can learn right now, with the training points it costs. Press **Teach** to open Beast Training.
+- **Gold:** what's coming soon, and how many levels or points it needs.
+- **Blue:** what to go find. Each row names the nearest beast that teaches it, or the Pet Trainer.
+
+Hover anything for the details, such as every beast that teaches a rank, with its level and zone.
+
+![Beasts that teach Bite](https://raw.githubusercontent.com/alexinslc/tamer/main/docs/screenshots/curseforge/02-find-tooltip.png)
 
 ### It keeps up with you
 
@@ -49,6 +53,8 @@ That's the only time it speaks up.
 2. Open Beast Training once, so Tamer can see which ranks you know.
 3. Click the Tamer icon on the minimap, or type `/tamer`.
 
+![The Tamer minimap button](https://raw.githubusercontent.com/alexinslc/tamer/main/docs/screenshots/curseforge/04-minimap.png)
+
 ### Commands
 
 | Command | What it does |
@@ -61,6 +67,6 @@ That's the only time it speaks up.
 
 ### Good to know
 
-The beast list is built from public World of Warcraft Classic data, and it's still being checked against Forever. If a beast is in the wrong place or teaches something different on Forever, leave a comment and it'll be fixed. This addon is free, and it isn't affiliated with or endorsed by Blizzard Entertainment.
+The beast list is built from public World of Warcraft Classic data, and it's still being checked against Forever. If a beast is in the wrong place or teaches something different on Forever, leave a comment and it'll be fixed. Screenshots are from the real game. This addon is free, and it isn't affiliated with or endorsed by Blizzard Entertainment.
 
 Found a bug or have an idea? Leave a comment, or open an issue on [GitHub](https://github.com/alexinslc/tamer).

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0
+
+- Redesigned the window with big icons and three cards: learn now, coming soon, and go find these. Details are in tooltips.
+- Added a Teach button that opens Beast Training.
+- Fixed the minimap icon being see-through.
+- Fixed the level-up line showing after a reload.
+- Restart the game after updating.
+
 ## 0.1.1
 
 - Fixed Tamer not seeing Beast Training on Forever.
