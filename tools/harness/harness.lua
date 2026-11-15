@@ -560,8 +560,26 @@ section("Forever's newer APIs", function()
 	check("skips ranks you haven't learned", char.known["Furious Howl"] == nil)
 	check("the window stops asking for Beast Training", not dashboardText():find("Cast Beast Training once", 1, true), dashboardText())
 
+	-- Or a trainer window, as Forever may use for Beast Training.
+	local services = { { "Growl", "Rank 5", "available", 40 }, { "Claw (Rank 4)", "", "unavailable", 24 } }
+	local npc = true
+	env.GetNumTrainerServices = function() return #services end
+	env.GetTrainerServiceInfo = function(i) local s = services[i]; return s[1], s[2], s[3] end
+	env.GetTrainerServiceLevelReq = function(i) return services[i][4] end
+	local savedExists = env.UnitExists
+	env.UnitExists = function(unit) if unit == "npc" then return npc end return savedExists(unit) end
+	fire("TRAINER_SHOW")
+	check("a Pet Trainer NPC's window isn't read", not (char.known.Growl and char.known.Growl[5]))
+	npc = false
+	fire("TRAINER_SHOW")
+	check("reads Beast Training as a trainer window", char.known.Growl and char.known.Growl[5]
+		and char.known.Growl[5].level == 40)
+	check("with the rank in the name", char.known.Claw[4] ~= nil)
+
 	local n = #chatOut
 	slash("debug")
+	check("/tamer debug prints trainer services", printedSince(n, "service 1: Growl | Rank 5 | available | level 40"))
+	env.GetNumTrainerServices, env.GetTrainerServiceInfo, env.GetTrainerServiceLevelReq, env.UnitExists = nil, nil, nil, savedExists
 	check("/tamer debug prints the pet's spellbook", printedSince(n, "pet 1: Bite"))
 	check("and the recipes", printedSince(n, "recipe 30: learned=true, name=Bite"))
 

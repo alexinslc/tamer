@@ -143,7 +143,7 @@ local function readCrafts()
 		if name and kind ~= "header" then
 			local ability, rankText = splitName(name)
 			if ns.Data.Abilities[ability] then
-				remember(ability, K.RankNumber(plain(sub) or rankText), plain(level), plain(cost))
+				remember(ability, K.RankNumber(rankText or plain(sub)), plain(level), plain(cost))
 				found = found + 1
 			end
 		end
@@ -194,10 +194,32 @@ local function readTradeSkill()
 	return #list
 end
 
+-- Forever's Beast Training window, if it's a trainer window. A Pet Trainer NPC uses the same
+-- window to sell ranks you don't know yet, so a window with an NPC behind it is skipped.
+local function readTrainer()
+	if not GetNumTrainerServices or not GetTrainerServiceInfo then return 0 end
+	if UnitExists("npc") then return 0 end
+	local found = 0
+	for i = 1, GetNumTrainerServices() or 0 do
+		local name, sub, category = GetTrainerServiceInfo(i)
+		name = plain(name)
+		if name and category ~= "header" then
+			local ability, rankText = splitName(name)
+			if ns.Data.Abilities[ability] then
+				local level = GetTrainerServiceLevelReq and plain(GetTrainerServiceLevelReq(i)) or nil
+				if type(level) ~= "number" or level < 1 then level = nil end
+				remember(ability, K.RankNumber(rankText or plain(sub)), level)
+				found = found + 1
+			end
+		end
+	end
+	return found
+end
+
 -- Reads the open Beast Training window. It lists the ranks the Hunter knows for the
 -- current pet's family, so seeing it once per family is enough.
 function K.ReadBeastTraining()
-	local found = readCrafts() + readTradeSkill()
+	local found = readCrafts() + readTradeSkill() + readTrainer()
 	local pet = K.Pet()
 	if found > 0 and pet and pet.family then
 		ns.CharData().seenFamilies[pet.family] = true
@@ -347,6 +369,8 @@ handlers.CRAFT_UPDATE = handlers.CRAFT_SHOW
 handlers.TRADE_SKILL_SHOW = handlers.CRAFT_SHOW
 handlers.TRADE_SKILL_LIST_UPDATE = handlers.CRAFT_SHOW
 handlers.TRADE_SKILL_DATA_SOURCE_CHANGED = handlers.CRAFT_SHOW
+handlers.TRAINER_SHOW = handlers.CRAFT_SHOW
+handlers.TRAINER_UPDATE = handlers.CRAFT_SHOW
 
 function handlers.CHAT_MSG_SYSTEM(message)
 	if K.ReadLearnMessage(message) then changed() end
@@ -392,7 +416,9 @@ end
 -- Prints what the game returns for the pet's spellbook and the open trade skill or craft
 -- window, so a bug report shows exactly what Tamer had to work with.
 function K.PrintDebug()
-	ns.Say("debug. Open Beast Training first to include it.")
+	ns.Say("debug. Run it with Beast Training open to include the window.")
+	print("  GetPetTrainingPoints: " .. (GetPetTrainingPoints and show(GetPetTrainingPoints()) or "missing"))
+	print("  npc: " .. show(UnitExists("npc"), UnitName("npc")))
 	print("  APIs: C_SpellBook=" .. tostring(C_SpellBook ~= nil) .. " GetSpellBookItemName=" .. tostring(GetSpellBookItemName ~= nil)
 		.. " C_TradeSkillUI=" .. tostring(C_TradeSkillUI ~= nil) .. " GetCraftInfo=" .. tostring(GetCraftInfo ~= nil))
 	print("  HasPetSpells: " .. (HasPetSpells and show(HasPetSpells()) or "missing"))
@@ -410,6 +436,15 @@ function K.PrintDebug()
 		print("  Recipes: " .. #ids)
 		for i = 1, math.min(#ids, 12) do
 			print(("  recipe %d: %s | subtext=%s"):format(ids[i], fields(ui.GetRecipeInfo and ui.GetRecipeInfo(ids[i])), tostring((spellSubtext(ids[i])))))
+		end
+	end
+	if GetNumTrainerServices then
+		local count = GetNumTrainerServices() or 0
+		print("  Trainer services: " .. tostring(count) .. ", type " .. (C_Trainer and C_Trainer.GetTrainerType and show(C_Trainer.GetTrainerType()) or "?"))
+		for i = 1, math.min(count, 12) do
+			print(("  service %d: %s | level %s | cost %s"):format(i, show(GetTrainerServiceInfo(i)),
+				GetTrainerServiceLevelReq and show(GetTrainerServiceLevelReq(i)) or "?",
+				GetTrainerServiceCost and show(GetTrainerServiceCost(i)) or "?"))
 		end
 	end
 	if GetNumCrafts then
