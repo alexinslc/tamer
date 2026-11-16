@@ -104,7 +104,7 @@ input = {
 ]]
 function Advisor.Build(input)
 	local data, pet = input.data, input.pet
-	local advice = { pet = pet, known = {}, ready = {}, needsPoints = {}, nextUp = {}, goLearn = {} }
+	local advice = { pet = pet, known = {}, ready = {}, needsPoints = {}, nextUp = {}, trainer = {}, goLearn = {} }
 	if not pet then
 		advice.noPet = true
 		return advice
@@ -133,8 +133,10 @@ function Advisor.Build(input)
 					local level = rankInfo(data, hunterRanks, ability, rank)
 					if level and level <= pet.level then
 						bestAllowed = rank
+						-- A rank with no known cost counts as affordable. Beast Training says
+						-- if it isn't.
 						local cost = netCost(data, hunterRanks, ability, rank, petRank)
-						if cost and cost <= points then best = rank end
+						if cost == nil or cost <= points then best = rank end
 					elseif level and not upcoming then
 						upcoming = rank
 					end
@@ -157,10 +159,23 @@ function Advisor.Build(input)
 				advice.nextUp[#advice.nextUp + 1] = { ability = ability, rank = upcoming, level = level }
 			end
 
-			-- The next rank the Hunter doesn't know yet.
+			-- The next rank the Hunter doesn't know yet. For a Pet Trainer's ability, that's the
+			-- highest rank the pet is old enough for, since the trainer sells every rank at once.
 			local highest = math.max(known[#known] or 0, petRank)
 			local nextRank = highest + 1
-			if data.Abilities[ability].ranks[nextRank] and not (hunterRanks[ability] or {})[nextRank] then
+			local info = data.Abilities[ability]
+			local buy
+			if info.source == "trainer" then
+				for rank = highest + 1, #info.ranks do
+					local level = rankInfo(data, hunterRanks, ability, rank)
+					if level and level <= pet.level and not (hunterRanks[ability] or {})[rank] then buy = rank end
+				end
+			end
+			if buy then
+				advice.trainer[#advice.trainer + 1] = {
+					ability = ability, rank = buy, level = rankInfo(data, hunterRanks, ability, buy),
+				}
+			elseif info.ranks[nextRank] and not (hunterRanks[ability] or {})[nextRank] then
 				local level = rankInfo(data, hunterRanks, ability, nextRank)
 				local source = data.Abilities[ability].source
 				advice.goLearn[#advice.goLearn + 1] = {

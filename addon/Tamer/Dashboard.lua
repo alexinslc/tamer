@@ -27,6 +27,8 @@ local teachWanted -- Whether the Teach button should be shown once combat ends.
 local CARDS = {
 	ready = { bg = { 0.07, 0.16, 0.05 }, border = { 0.45, 0.78, 0.28 }, title = { 0.72, 0.96, 0.55 },
 		icon = "Interface\\RaidFrame\\ReadyCheck-Ready" },
+	trainer = { bg = { 0.12, 0.07, 0.18 }, border = { 0.66, 0.46, 0.86 }, title = { 0.86, 0.72, 1 },
+		icon = "Interface\\Icons\\INV_Misc_Coin_01" },
 	soon = { bg = { 0.18, 0.14, 0.04 }, border = { 0.78, 0.62, 0.20 }, title = { 1, 0.82, 0.20 },
 		icon = "Interface\\Icons\\INV_Misc_PocketWatch_01" },
 	find = { bg = { 0.06, 0.10, 0.18 }, border = { 0.36, 0.56, 0.82 }, title = { 0.62, 0.80, 1 },
@@ -252,7 +254,8 @@ local function addRow(card, info)
 end
 
 -- The icons in a row of up to three, with the rank on the icon and the cost below.
-local function addTiles(card, entries, pet)
+-- tooltipFor(entry) gives each tile's tooltip.
+local function addTiles(card, entries, pet, tooltipFor)
 	local width = (content:GetWidth() - 2 * CARD_PAD) / 3
 	for i, entry in ipairs(entries) do
 		local column = (i - 1) % 3
@@ -265,11 +268,7 @@ local function addTiles(card, entries, pet)
 		tile.name:SetText(entry.ability)
 		tile.name:SetWidth(width - 4)
 		tile.cost:SetText(entry.cost and points(entry.cost) or "")
-		tile.tooltip = { rankName(entry) }
-		if entry.cost then
-			tile.tooltip[2] = ("Costs %s. %s has %s."):format(points(entry.cost), pet.name, points(pet.points or 0))
-		end
-		tile.tooltip[#tile.tooltip + 1] = "Press Teach to open Beast Training, then pick it."
+		tile.tooltip = tooltipFor(entry)
 	end
 	local lines = math.ceil(#entries / 3)
 	card.inner = card.inner + lines * (TILE_ICON + 38)
@@ -278,7 +277,29 @@ end
 local function addReady(advice)
 	local pet, count = advice.pet, #advice.ready
 	local card = startCard("ready", ("%s can learn %d %s now"):format(pet.name, count, plural(count, "thing", "things")))
-	addTiles(card, advice.ready, pet)
+	addTiles(card, advice.ready, pet, function(entry)
+		local lines = { rankName(entry) }
+		if entry.cost then
+			lines[2] = ("Costs %s. %s has %s."):format(points(entry.cost), pet.name, points(pet.points or 0))
+		end
+		lines[#lines + 1] = "Press Teach to open Beast Training, then pick it."
+		return lines
+	end)
+	finishCard(card)
+end
+
+-- Ranks a Pet Trainer sells that the pet is old enough for.
+local function addTrainer(advice)
+	local pet, count = advice.pet, #advice.trainer
+	if count == 0 then return end
+	local card = startCard("trainer", ("A Pet Trainer has %d new %s"):format(count, plural(count, "thing", "things")))
+	addTiles(card, advice.trainer, pet, function(entry)
+		return {
+			rankName(entry),
+			"Buy it from a Pet Trainer in any capital city.",
+			("Then teach it to %s with Beast Training."):format(pet.name),
+		}
+	end)
 	finishCard(card)
 end
 
@@ -532,6 +553,7 @@ local function draw()
 				("Press the button below with %s out. Tamer reads it to learn what you can teach."):format(advice.pet.name))
 		else
 			if #advice.ready > 0 then addReady(advice) end
+			addTrainer(advice)
 			addSoon(advice)
 			addFind(advice)
 		end

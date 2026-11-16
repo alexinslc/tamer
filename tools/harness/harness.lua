@@ -361,8 +361,18 @@ section("The advisor", function()
 	input.hunterRanks = hunterKnows({ Growl = { 1 } })
 	advice = A.Build(input)
 	local growl
-	for _, entry in ipairs(advice.goLearn) do if entry.ability == "Growl" then growl = entry end end
-	check("trainer abilities point to a Pet Trainer", growl and growl.source == "trainer" and growl.rank == 2)
+	for _, entry in ipairs(advice.trainer) do if entry.ability == "Growl" then growl = entry end end
+	check("a trainer rank the pet is old enough for goes to the Pet Trainer list", growl and growl.rank == 2, names(advice.trainer))
+	input.pet = { name = "Behr", family = "Bear", level = 25, points = 20 }
+	advice = A.Build(input)
+	check("the trainer list names the highest rank the pet is old enough for", names(advice.trainer) == "Growl 3", names(advice.trainer))
+	input.pet = { name = "Behr", family = "Bear", level = 5, points = 20 }
+	input.hunterRanks = hunterKnows({ Growl = { 1, 2 } })
+	advice = A.Build(input)
+	local later
+	for _, entry in ipairs(advice.goLearn) do if entry.ability == "Growl" then later = entry end end
+	check("a trainer rank the pet is too young for stays in go find", later and later.source == "trainer" and later.rank == 3
+		and #advice.trainer == 0, names(advice.goLearn))
 
 	input.hunterRanks = nil
 	advice = A.Build(input)
@@ -522,6 +532,7 @@ end)
 
 section("The level-up line", function()
 	W.time = 100 -- Long after login.
+	TEST_DATA.Abilities["Fire Resistance"] = { source = "trainer", families = "all", ranks = { { level = 20, cost = 5 } } }
 	local n = #chatOut
 	W.pet.level = 16
 	fire("UNIT_LEVEL", "pet")
@@ -532,6 +543,9 @@ section("The level-up line", function()
 	W.pet.total = 5
 	fire("UNIT_LEVEL", "pet")
 	check("waits while the new rank isn't affordable yet", countSince(n, "can now learn") == 0, chatOut[#chatOut])
+	check("but says a Pet Trainer has something new", printedSince(n, "Behr hit level 20. A Pet Trainer has 1 new rank for Behr."), chatOut[#chatOut])
+	check("and the window has a Pet Trainer card", dashboardText():find("A Pet Trainer has 1 new thing", 1, true)
+		and hover("Fire Resistance"):find("Buy it from a Pet Trainer", 1, true), dashboardText())
 	W.pet.total = 14
 	fire("UNIT_PET_TRAINING_POINTS", "player")
 	check("one line when a rank becomes ready", countSince(n, "can now learn") == 1)
@@ -564,6 +578,7 @@ section("The level-up line", function()
 	fire("UNIT_PET", "player")
 	check("quiet when you swap pets", countSince(n, "can now learn") == 0, chatOut[#chatOut])
 	check("the window follows the new pet", dashboardText():find("Fang", 1, true))
+	TEST_DATA.Abilities["Fire Resistance"] = nil
 end)
 
 section("Learning from chat", function()
@@ -613,6 +628,20 @@ section("Forever's newer APIs", function()
 	check("reads the pet's spellbook through C_SpellBook", ranks.Growl == 2, ranks.Growl)
 	check("takes the rank from the spell ID", ranks.Bite == 4, ranks.Bite)
 	check("takes the rank from the name", ranks.Dash == 1, ranks.Dash)
+
+	-- An ability the data doesn't have, like Forever's Swipe, is learned from the spellbook.
+	table.insert(book, { "Swipe", "Rank 2", 900 })
+	table.insert(book, { "Aggressive", "Pet Stance", 901 })
+	ranks = ns.Knowledge.PetRanks()
+	check("learns a ranked ability the data doesn't have", ranks.Swipe == 2 and TEST_DATA.Abilities.Swipe
+		and TEST_DATA.Abilities.Swipe.families[1] == "Wolf", ranks.Swipe)
+	check("but not stances or commands", TEST_DATA.Abilities.Aggressive == nil)
+	check("and saves it for next time", env.TamerDB.discovered and env.TamerDB.discovered.Swipe and env.TamerDB.discovered.Swipe.Wolf)
+	TEST_DATA.Abilities.Swipe = nil
+	ns.Knowledge.LoadDiscovered()
+	check("it comes back after a reload", TEST_DATA.Abilities.Swipe and TEST_DATA.Abilities.Swipe.families[1] == "Wolf")
+	table.remove(book) table.remove(book)
+	TEST_DATA.Abilities.Swipe, env.TamerDB.discovered = nil, nil
 
 	-- Forever's Beast Training: a trade skill window, not a craft window.
 	W.crafts = {}
@@ -728,7 +757,9 @@ section("Data.lua", function()
 		local lastLevel = 0
 		for rank, entry in ipairs(info.ranks or {}) do
 			check(("%s %d: has a level"):format(name, rank), type(entry.level) == "number")
-			check(("%s %d: has a cost"):format(name, rank), type(entry.cost) == "number")
+			if not info.forever then
+				check(("%s %d: has a cost"):format(name, rank), type(entry.cost) == "number")
+			end
 			check(("%s %d: levels go up"):format(name, rank), (entry.level or 0) >= lastLevel)
 			lastLevel = entry.level or lastLevel
 		end

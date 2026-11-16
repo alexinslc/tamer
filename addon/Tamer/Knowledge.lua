@@ -86,10 +86,72 @@ local function spellSubtext(id)
 end
 
 -- Splits "Bite (Rank 3)" into "Bite" and "Rank 3". Other names come back as they are.
+-- The ability's name in Tamer's data, where the game uses another one.
+local function canonical(name)
+	local aliases = ns.Data.AbilityAliases
+	return aliases and aliases[name] or name
+end
+
 local function splitName(name)
 	local base, rankText = name:match("^(.-) %((.-)%)$")
-	if base and rankText:find("%d") then return base, rankText end
-	return name
+	if base and rankText:find("%d") then return canonical(base), rankText end
+	return canonical(name)
+end
+
+-------------------------------------------------------------------------------
+-- Abilities the data doesn't have
+-------------------------------------------------------------------------------
+
+-- Forever adds pet abilities, and may add more. When the pet's spellbook or Beast Training
+-- shows a ranked ability Tamer's data doesn't have, Tamer adds it for that family and saves
+-- it, so it shows in the window like any other. Its levels come from Beast Training.
+
+local function contains(list, value)
+	for _, item in ipairs(list) do
+		if item == value then return true end
+	end
+	return false
+end
+
+local function addDiscovered(ability, family)
+	local info = ns.Data.Abilities[ability]
+	if not info then
+		info = { source = "beast", families = {}, ranks = {}, discovered = true }
+		ns.Data.Abilities[ability] = info
+	end
+	if not info.discovered or not family then return end
+	if not contains(info.families, family) then table.insert(info.families, family) end
+	if not contains(ns.Data.Families, family) then table.insert(ns.Data.Families, family) end
+end
+
+-- Only text like "Rank 3" marks a pet ability. Stances and commands say "Pet Stance" and
+-- "Pet Command".
+local function isRank(text)
+	return type(text) == "string" and text:match("^Rank %d+$") ~= nil
+end
+
+local function discover(ability, rankText, family)
+	local info = ns.Data.Abilities[ability]
+	if (info and not info.discovered) or not isRank(rankText) then return end
+	family = family and ns.Data.FamilyAliases and ns.Data.FamilyAliases[family] or family
+	local db = ns.GetDB()
+	if not db then return end
+	db.discovered = db.discovered or {}
+	db.discovered[ability] = db.discovered[ability] or {}
+	if family then db.discovered[ability][family] = true end
+	addDiscovered(ability, family)
+end
+
+-- Puts the abilities found in earlier sessions back into the data.
+function K.LoadDiscovered()
+	local db = ns.GetDB()
+	for ability, families in pairs(db and db.discovered or {}) do
+		local info = ns.Data.Abilities[ability]
+		if not info or info.discovered then
+			addDiscovered(ability)
+			for family in pairs(families) do addDiscovered(ability, family) end
+		end
+	end
 end
 
 -- The name, rank text and spell ID of one slot in the pet's spellbook. Forever runs on a
@@ -130,8 +192,9 @@ end
 local function readAbility(name, sub, id)
 	if not name then return nil end
 	local base, rankText = splitName(name)
-	if not ns.Data.Abilities[base] then return nil end
 	if not sub or sub == "" then sub = rankText or spellSubtext(id) end
+	if not ns.Data.Abilities[base] then discover(base, sub, plain(UnitCreatureFamily("pet"))) end
+	if not ns.Data.Abilities[base] then return nil end
 	return base, K.RankNumber(sub)
 end
 
@@ -253,6 +316,9 @@ local function readTrainer()
 		end
 		if name and category ~= "header" and (not atTrainer or category == "used") then
 			local ability, rankText = splitName(name)
+			if not atTrainer and not ns.Data.Abilities[ability] then
+				discover(ability, rankText or sub, plain(UnitCreatureFamily("pet")))
+			end
 			if ns.Data.Abilities[ability] then
 				local level = GetTrainerServiceLevelReq and plain(GetTrainerServiceLevelReq(i)) or nil
 				if type(level) ~= "number" or level < 1 then level = nil end
@@ -300,7 +366,7 @@ function K.ReadLearnMessage(message)
 		local what = message:match(pattern)
 		if what then
 			local ability, rankText = what:match("^(.-) %((.-)%)$")
-			ability = ability or what
+			ability = canonical(ability or what)
 			if ns.Data.Abilities[ability] then
 				return remember(ability, K.RankNumber(rankText))
 			end
@@ -362,9 +428,9 @@ local function settle()
 	quietUntil = clock() + SETTLE_SECONDS
 end
 
-local function readyKeys(advice)
+local function readyKeys(advice, list)
 	local keys = {}
-	for _, entry in ipairs(advice.ready or {}) do
+	for _, entry in ipairs(advice[list or "ready"] or {}) do
 		keys[entry.ability .. "#" .. entry.rank] = entry
 	end
 	return keys
@@ -389,6 +455,7 @@ local function checkLevelUp()
 	local now = {
 		name = pet and pet.name, family = pet and pet.family, level = pet and pet.level,
 		points = pet and pet.points, version = K.version, ready = readyKeys(advice),
+		trainer = readyKeys(advice, "trainer"),
 	}
 	-- Only growth from a value the game had already given counts. Right after login or
 	-- /reload, the pet's level or training points can arrive late, and that isn't a level-up.
@@ -401,9 +468,24 @@ local function checkLevelUp()
 			if not last.ready[key] then fresh[#fresh + 1] = entry end
 		end
 		table.sort(fresh, function(a, b) return a.ability < b.ability end)
+		-- New Pet Trainer ranks only come from leveling, so only a level-up counts them.
+		local newAtTrainer = 0
+		if leveled then
+			for key in pairs(now.trainer) do
+				if not (last.trainer or {})[key] then newAtTrainer = newAtTrainer + 1 end
+			end
+		end
+		local trainerLine = newAtTrainer > 0 and ("A Pet Trainer has %d new %s for %s."):format(
+			newAtTrainer, newAtTrainer == 1 and "rank" or "ranks", pet.name) or nil
 		if #fresh > 0 then
-			ns.Say(("%s can now learn %s. Cast Beast Training to teach %s."):format(
-				pet.name, listNames(fresh), #fresh == 1 and "it" or "them"))
+			local line = ("%s can now learn %s. Cast Beast Training to teach %s."):format(
+				pet.name, listNames(fresh), #fresh == 1 and "it" or "them")
+			if trainerLine then
+				line = line .. (" A Pet Trainer also has %d new %s."):format(newAtTrainer, newAtTrainer == 1 and "rank" or "ranks")
+			end
+			ns.Say(line)
+		elseif trainerLine then
+			ns.Say(("%s hit level %d. %s"):format(pet.name, now.level, trainerLine))
 		end
 	end
 	last = now
@@ -465,6 +547,7 @@ local frame
 function K.Start()
 	if frame then return end
 	settle()
+	K.LoadDiscovered()
 	frame = CreateFrame("Frame")
 	-- A client without one of these events errors on registering it, so each is tried alone.
 	for event in pairs(handlers) do

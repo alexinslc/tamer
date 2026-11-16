@@ -6,11 +6,16 @@ local _, ns = ...
 ns.Data = {}
 
 -- Pet families, exactly as UnitCreatureFamily("pet") returns them on an English client.
-ns.Data.Families = { "Bat", "Bear", "Boar", "Carrion Bird", "Cat", "Crab", "Crocolisk", "Gorilla", "Hyena", "Owl", "Raptor", "Scorpid", "Spider", "Tallstrider", "Turtle", "Wind Serpent", "Wolf" }
+-- Fox is new in Forever.
+ns.Data.Families = { "Bat", "Bear", "Boar", "Carrion Bird", "Cat", "Crab", "Crocolisk", "Fox", "Gorilla", "Hyena", "Owl", "Raptor", "Scorpid", "Spider", "Tallstrider", "Turtle", "Wind Serpent", "Wolf" }
 
 -- Other names the game may use for a family. Wowhead's Forever data calls owls "Bird of
 -- Prey", so either name gets the Owl abilities until the game shows which it uses.
 ns.Data.FamilyAliases = { ["Bird of Prey"] = "Owl" }
+
+-- Other names the game may use for an ability. ForeverChanges calls the Carrion Bird's
+-- Screech "Demoralizing Screech".
+ns.Data.AbilityAliases = { ["Demoralizing Screech"] = "Screech" }
 
 -- Each ability's icon in Classic. Tamer prefers the icon the game shows in the pet's
 -- spellbook or in Beast Training, and falls back to these.
@@ -38,6 +43,9 @@ ns.Data.Icons = {
 	["Shadow Resistance"] = "Interface\\Icons\\Spell_Shadow_AntiShadow",
 }
 
+-- forever = true marks an ability that's new in Forever, whose training point costs
+-- aren't known yet.
+--
 -- Each ability: where the Hunter learns it ("beast" = tame a wild beast that knows it,
 -- "trainer" = a Pet Trainer), which families can learn it ("all" or a list), and its ranks
 -- in order, each with the pet level it needs and its training point cost.
@@ -58,6 +66,9 @@ ns.Data.Icons = {
 --     while the other four resistances put rank 4 at 50. Kept at 40 as Wowhead shows it; check in game.
 --   Growl: warcraft.wiki.gg "Beast Training" says pets know ranks 1-2 by default; ranks 3+ are bought
 --     from a Pet Trainer. Every rank costs 0 training points.
+-- Most of Forever's new family abilities share these rank levels.
+local FAMILY_RANKS = { { level = 12 }, { level = 24 }, { level = 36 }, { level = 48 }, { level = 60 } }
+
 ns.Data.Abilities = {
 	-- Beast-taught -----------------------------------------------------------------------
 	["Bite"] = {
@@ -114,7 +125,9 @@ ns.Data.Abilities = {
 	},
 	["Dash"] = {
 		source = "beast",
-		families = { "Boar", "Cat", "Hyena", "Tallstrider", "Wolf" },
+		-- Forever adds Bear, Crab, Crocolisk, Gorilla, Raptor, Scorpid, Spider and Turtle.
+		families = { "Bear", "Boar", "Cat", "Crab", "Crocolisk", "Gorilla", "Hyena", "Raptor", "Scorpid",
+			"Spider", "Tallstrider", "Turtle", "Wolf" },
 		ranks = {
 			{ level = 30, cost = 15 },
 			{ level = 40, cost = 20 },
@@ -171,9 +184,10 @@ ns.Data.Abilities = {
 			{ level = 56, cost = 25 },
 		},
 	},
+	-- Forever took Screech away from bats and owls.
 	["Screech"] = {
 		source = "beast",
-		families = { "Bat", "Carrion Bird", "Owl" },
+		families = { "Carrion Bird" },
 		ranks = {
 			{ level = 8, cost = 10 },
 			{ level = 24, cost = 15 },
@@ -197,6 +211,26 @@ ns.Data.Abilities = {
 			{ level = 50, cost = 25 },
 		},
 	},
+
+	-- New in Forever -----------------------------------------------------------------------
+	-- Each family below got one ability of its own. Sources: ForeverChanges
+	-- (foreverchanges.pro/hunter-pets, build 1.60.1.70938) for families and first and last rank
+	-- levels, and Leprestore's Forever rank table for the levels in between. Neither lists
+	-- training point costs, so they're left out; Tamer reads them from Beast Training instead.
+	-- No beasts that teach them are listed yet.
+	["Sonic Blast"] = { source = "beast", families = { "Bat" }, ranks = FAMILY_RANKS, forever = true },
+	["Swipe"] = { source = "beast", families = { "Bear" }, ranks = FAMILY_RANKS, forever = true },
+	["Pinch"] = { source = "beast", families = { "Crab" }, ranks = FAMILY_RANKS, forever = true },
+	["Dismember"] = { source = "beast", families = { "Crocolisk" }, ranks = FAMILY_RANKS, forever = true },
+	["Tendon Rip"] = { source = "beast", families = { "Hyena" }, ranks = FAMILY_RANKS, forever = true },
+	["Savage Rend"] = { source = "beast", families = { "Raptor" }, ranks = FAMILY_RANKS, forever = true },
+	["Web"] = { source = "beast", families = { "Spider" }, ranks = FAMILY_RANKS, forever = true },
+	["Dust Cloud"] = { source = "beast", families = { "Tallstrider" }, ranks = FAMILY_RANKS, forever = true },
+	["Mine!"] = {
+		source = "beast", families = { "Owl" }, forever = true,
+		ranks = { { level = 10 }, { level = 20 }, { level = 30 }, { level = 40 }, { level = 50 } },
+	},
+	["Trickster's Dance"] = { source = "beast", families = { "Fox" }, ranks = { { level = 20 } }, forever = true },
 
 	-- Trainer-taught ---------------------------------------------------------------------
 	["Growl"] = {
