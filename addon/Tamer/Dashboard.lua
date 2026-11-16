@@ -18,6 +18,7 @@ local ROW_ICON = 28
 local ROW_HEIGHT = 34
 local FIND_SHOWN = 3
 local BEAST_TRAINING = 5149
+local CALL_PET = 883
 local CALL_PET_ICON = "Interface\\Icons\\Ability_Hunter_BeastCall"
 
 local frame, header, scroll, content, teach
@@ -469,7 +470,8 @@ end
 -- window itself stays unprotected, and only shown or hidden outside combat.
 local function syncTeach()
 	if not teach then return end
-	local want = frame and frame:IsShown() or false
+	-- Only a Hunter has a pet to call or teach.
+	local want = frame and frame:IsShown() and ns.IsHunter() or false
 	if InCombatLockdown and InCombatLockdown() then
 		teachWanted = want
 		teach:SetAlpha(want and 1 or 0)
@@ -480,13 +482,31 @@ local function syncTeach()
 	teach:SetShown(want)
 end
 
+local function spellName(id, fallback)
+	local name = C_Spell and C_Spell.GetSpellName and C_Spell.GetSpellName(id)
+	if not name and GetSpellInfo then name = GetSpellInfo(id) end
+	return ns.Plain(name) or fallback
+end
+
+-- With a pet out the button opens Beast Training. With none, it calls your pet. Its spell
+-- can only change outside combat, so in combat it keeps the one it had.
 local function setTeachText(advice)
 	if not teach then return end
 	local pet = advice and advice.pet
-	if pet and advice.ready and #advice.ready > 0 then
+	local inCombat = InCombatLockdown and InCombatLockdown()
+	if not inCombat then
+		teach:SetAttribute("spell", pet and beastTrainingName() or spellName(CALL_PET, "Call Pet"))
+	end
+	local spell = teach:GetAttribute("spell")
+	if spell ~= beastTrainingName() then
+		teach:SetText(spell or "Call Pet")
+		teach.tooltip = { spell or "Call Pet", "Calls your pet." }
+	elseif pet and advice.ready and #advice.ready > 0 then
 		teach:SetText(("Teach %s"):format(pet.name))
+		teach.tooltip = nil
 	else
 		teach:SetText("Open Beast Training")
+		teach.tooltip = nil
 	end
 end
 
@@ -502,7 +522,7 @@ local function buildTeach()
 	teach:RegisterForClicks("AnyUp", "AnyDown")
 	teach:SetText("Open Beast Training")
 	teach:SetScript("OnEnter", function(self)
-		showTooltip(self, { "Beast Training", "Opens the window where you teach your pet. Not in combat." })
+		showTooltip(self, self.tooltip or { "Beast Training", "Opens the window where you teach your pet. Not in combat." })
 	end)
 	teach:SetScript("OnLeave", function() GameTooltip:Hide() end)
 	teach:Hide()
@@ -559,6 +579,7 @@ local function draw()
 		end
 	end
 	setTeachText(advice)
+	syncTeach()
 	content:SetHeight(math.max(y, 1))
 end
 
@@ -654,6 +675,7 @@ function Dashboard.Build()
 	end)
 	frame:SetScript("OnHide", function()
 		ns.PlayUISound("IG_CHARACTER_INFO_CLOSE")
+		showAllFinds = false -- Each time it opens, it starts short.
 		GameTooltip:Hide()
 		syncTeach()
 	end)

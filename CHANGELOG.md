@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Added a Pet Trainer card for new ranks a Pet Trainer has for your pet, and a chat line when it gets new ones.
+- Added Forever's new pet abilities, such as Swipe, Web and Savage Rend, and the Fox family.
+- Tamer now picks up pet abilities it doesn't know yet from your pet's spellbook and Beast Training.
+- Ranks you buy from a Pet Trainer now count right away.
+- With no pet out, the window shows Call Pet, and its button calls your pet.
+
 ## 0.2.0
 
 - Redesigned the window with big icons and three cards: learn now, coming soon, and go find these. Details are in tooltips.

@@ -708,10 +708,13 @@ section("No pet, and not a Hunter", function()
 	W.pet = nil
 	fire("UNIT_PET", "player")
 	check("asks you to call your pet", dashboardText():find("Call your pet", 1, true), dashboardText())
+	local teach = namedFrames.TamerTeachButton
+	check("and the button calls it", teach:GetAttribute("spell") == "Call Pet" and teach:GetText() == "Call Pet", teach:GetText())
 	W.pet = saved
 	W.class = "MAGE"
 	ns.Dashboard.Refresh()
 	check("says it's for Hunters", dashboardText():find("Tamer is for Hunters", 1, true), dashboardText())
+	check("with no button", not namedFrames.TamerTeachButton:IsShown())
 	W.class = "HUNTER"
 	fire("UNIT_PET", "player")
 end)
